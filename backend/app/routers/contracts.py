@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
+from docx import Document
 
 from app.database.connection import get_db
 from app.models import Contract, Clause, Finding, Obligation
@@ -12,12 +14,47 @@ from app.services.risk_service import analyze_clauses
 from app.services.obligation_service import extract_obligations
 from app.services.version_service import generate_contract_v2
 from app.services.diff_service import compare_clauses
+from app.services.ai_service import analyze_contract_with_ai
 
 
 router = APIRouter(
     prefix="/contracts",
     tags=["Contracts"]
 )
+
+
+# ============================================================
+# LIST ALL CONTRACTS
+# ============================================================
+
+@router.get("")
+def list_contracts(
+    db: Session = Depends(get_db)
+):
+
+    contracts = (
+        db.query(Contract)
+        .order_by(
+            Contract.contract_name.asc(),
+            Contract.version_number.asc(),
+            Contract.id.asc()
+        )
+        .all()
+    )
+
+    return {
+        "contracts": [
+            {
+                "id": contract.id,
+                "name": contract.contract_name,
+                "file_name": contract.file_name,
+                "file_type": contract.file_type,
+                "version": contract.version_number,
+                "parent_contract_id": contract.parent_contract_id
+            }
+            for contract in contracts
+        ]
+    }
 
 
 UPLOAD_DIR = Path("uploads")
@@ -31,6 +68,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 @router.post("/upload")
 async def upload_contract(
     file: UploadFile = File(...),
+    contract_name: str = Form(""),
     db: Session = Depends(get_db)
 ):
 
@@ -55,11 +93,33 @@ async def upload_contract(
     with open(file_path, "wb") as buffer:
         buffer.write(content)
 
+    clean_contract_name = (
+            contract_name or Path(file.filename).stem
+    ).strip()
+
+    if not clean_contract_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Contract name is required"
+        )
+
+    # ========================================================
+    # MANUAL UPLOADS ARE ALWAYS INDEPENDENT CONTRACTS
+    # ========================================================
+
+    version_number = 1
+    parent_contract_id = None
+
+    # ========================================================
+    # CREATE CONTRACT RECORD
+    # ========================================================
+
     contract = Contract(
-        contract_name=Path(file.filename).stem,
+        contract_name=clean_contract_name,
         file_name=file.filename,
         file_type=extension.replace(".", "").upper(),
-        version_number=1
+        version_number=version_number,
+        parent_contract_id=parent_contract_id
     )
 
     db.add(contract)
@@ -124,11 +184,11 @@ async def upload_contract(
 
 
 # ============================================================
-# ANALYZE CONTRACT AGAINST PLAYBOOK
+# DELETE CONTRACT
 # ============================================================
 
-@router.post("/{contract_id}/analyze")
-def analyze_contract(
+@router.delete("/{contract_id}")
+def delete_contract(
     contract_id: int,
     db: Session = Depends(get_db)
 ):
@@ -145,11 +205,112 @@ def analyze_contract(
             detail="Contract not found"
         )
 
+    # --------------------------------------------------------
+    # Find dependent generated versions
+    # --------------------------------------------------------
+
+    child_contracts = (
+        db.query(Contract)
+        .filter(
+            Contract.parent_contract_id == contract_id
+        )
+        .all()
+    )
+
+    contracts_to_delete = [
+        contract
+    ] + child_contracts
+
+    deleted_ids = []
+
+    # --------------------------------------------------------
+    # Delete physical uploaded/generated files
+    # --------------------------------------------------------
+
+    for item in contracts_to_delete:
+
+        file_path = UPLOAD_DIR / item.file_name
+
+        try:
+            if file_path.exists():
+                file_path.unlink()
+        except Exception:
+            pass
+
+        deleted_ids.append(item.id)
+
+    # --------------------------------------------------------
+    # Delete database records
+    # --------------------------------------------------------
+
+    for item in contracts_to_delete:
+
+        db.query(Obligation).filter(
+            Obligation.contract_id == item.id
+        ).delete(
+            synchronize_session=False
+        )
+
+        db.query(Finding).filter(
+            Finding.contract_id == item.id
+        ).delete(
+            synchronize_session=False
+        )
+
+        db.query(Clause).filter(
+            Clause.contract_id == item.id
+        ).delete(
+            synchronize_session=False
+        )
+
+        db.delete(item)
+
+    db.commit()
+
+    return {
+        "message": "Contract data deleted successfully",
+        "deleted_contract_ids": deleted_ids
+    }
+
+
+# ============================================================
+# ANALYZE CONTRACT AGAINST PLAYBOOK + AI ENGINE
+# ============================================================
+
+@router.post("/{contract_id}/analyze")
+def analyze_contract(
+    contract_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Analyze a contract using two complementary engines:
+
+    1. Deterministic playbook analysis:
+       - AUTHORITATIVE for STANDARD/RISKY/MISSING/AMBIGUOUS
+       - AUTHORITATIVE for severity, expected value, actual value,
+         and clause traceability
+
+    2. AI semantic analysis:
+       - Enriches the result with key points, explanations and
+         supporting-document suggestions
+       - Does not override the playbook assessment
+    """
+
+    contract = (
+        db.query(Contract)
+        .filter(Contract.id == contract_id)
+        .first()
+    )
+
+    if not contract:
+        raise HTTPException(
+            status_code=404,
+            detail="Contract not found"
+        )
+
     clauses = (
         db.query(Clause)
-        .filter(
-            Clause.contract_id == contract_id
-        )
+        .filter(Clause.contract_id == contract_id)
         .all()
     )
 
@@ -170,9 +331,91 @@ def analyze_contract(
         for clause in clauses
     ]
 
-    findings = analyze_clauses(
-        clause_data
-    )
+    # ========================================================
+    # AUTHORITATIVE PLAYBOOK ANALYSIS
+    # ========================================================
+
+    deterministic_findings = analyze_clauses(clause_data)
+
+    # ========================================================
+    # AI ENRICHMENT
+    # ========================================================
+
+    ai_report = None
+    ai_findings = []
+    ai_error = None
+
+    try:
+        contract_path = UPLOAD_DIR / contract.file_name
+
+        if not contract_path.exists():
+            raise FileNotFoundError(
+                f"Uploaded contract file not found: {contract_path}"
+            )
+
+        ai_report = analyze_contract_with_ai(
+            str(contract_path)
+        )
+
+        ai_findings = ai_report.get("findings", []) or []
+
+    except Exception as exc:
+        ai_error = str(exc)
+
+    # Index AI findings by rule so they can enrich the deterministic
+    # finding without changing its authoritative classification.
+    ai_by_rule = {}
+
+    for item in ai_findings:
+        rule_id = item.get("rule_id")
+
+        if rule_id:
+            ai_by_rule[rule_id] = item
+
+    # ========================================================
+    # MERGE: PLAYBOOK RESULT + AI EXPLANATION
+    # ========================================================
+
+    findings = []
+
+    for item in deterministic_findings:
+
+        rule_id = item.get("rule_id")
+        ai_item = ai_by_rule.get(rule_id, {})
+
+        # Keep deterministic values authoritative.
+        finding = {
+            "clause_id": item.get("clause_id"),
+            "rule_id": rule_id,
+            "category": item.get("category"),
+            "status": item.get("status"),
+            "severity": item.get("severity"),
+            "evidence": item.get("evidence"),
+            "expected": item.get("expected"),
+            "actual": item.get("actual"),
+            "reason": item.get("reason"),
+            "recommended_action": item.get("recommended_action")
+        }
+
+        # AI can improve the explanation/action only when the
+        # deterministic engine did not already provide one.
+        if not finding["reason"]:
+            finding["reason"] = (
+                ai_item.get("explanation")
+                or ai_item.get("reason")
+            )
+
+        if not finding["recommended_action"]:
+            finding["recommended_action"] = (
+                ai_item.get("suggested_action")
+                or ai_item.get("recommended_action")
+            )
+
+        findings.append(finding)
+
+    # ========================================================
+    # SAVE AUTHORITATIVE FINDINGS
+    # ========================================================
 
     db.query(Finding).filter(
         Finding.contract_id == contract_id
@@ -195,9 +438,7 @@ def analyze_contract(
             expected=item.get("expected"),
             actual=item.get("actual"),
             reason=item.get("reason"),
-            recommended_action=item.get(
-                "recommended_action"
-            )
+            recommended_action=item.get("recommended_action")
         )
 
         db.add(finding)
@@ -218,6 +459,10 @@ def analyze_contract(
         })
 
     db.commit()
+
+    # ========================================================
+    # AUTHORITATIVE SUMMARY
+    # ========================================================
 
     high_risk = sum(
         1
@@ -255,6 +500,74 @@ def analyze_contract(
         if item["status"] == "AMBIGUOUS"
     )
 
+    authoritative_summary = {
+        "clause_count": len(clauses),
+        "finding_count": len(saved_findings),
+        "high_risk": high_risk,
+        "medium_risk": medium_risk,
+        "standard": standard,
+        "risky": risky,
+        "missing": missing,
+        "ambiguous": ambiguous
+    }
+
+    # ========================================================
+    # AI RESPONSE
+    # ========================================================
+
+    ai_status = (
+        "COMPLETED"
+        if ai_report is not None
+        else "FALLBACK_DETERMINISTIC"
+    )
+
+    ai_response = {
+        "status": ai_status,
+        "total_clauses": len(clauses),
+        "total_key_points": 0,
+        "key_points": [],
+        "risk_summary": authoritative_summary,
+        "ai_risk_summary": {},
+        "supporting_document_suggestions": [],
+        "total_supporting_document_suggestions": 0
+    }
+
+    if ai_report is not None:
+        ai_response.update({
+            # Use DB clause count so the API stays consistent with
+            # the contract actually stored in the backend.
+            "total_clauses": len(clauses),
+
+            "total_key_points": ai_report.get(
+                "total_key_points", 0
+            ),
+
+            "key_points": ai_report.get(
+                "key_points", []
+            ),
+
+            # This is the authoritative summary shown by the
+            # backend/dashboard.
+            "risk_summary": authoritative_summary,
+
+            # Preserve the raw AI interpretation separately so it
+            # remains available for demo/debugging.
+            "ai_risk_summary": ai_report.get(
+                "risk_summary", {}
+            ),
+
+            "supporting_document_suggestions": ai_report.get(
+                "supporting_document_suggestions", []
+            ),
+
+            "total_supporting_document_suggestions": ai_report.get(
+                "total_supporting_document_suggestions", 0
+            )
+        })
+
+    if ai_error:
+        ai_response["error"] = ai_error
+
     return {
         "message": "Contract analyzed successfully",
 
@@ -264,16 +577,9 @@ def analyze_contract(
             "version": contract.version_number
         },
 
-        "summary": {
-            "clause_count": len(clauses),
-            "finding_count": len(saved_findings),
-            "high_risk": high_risk,
-            "medium_risk": medium_risk,
-            "standard": standard,
-            "risky": risky,
-            "missing": missing,
-            "ambiguous": ambiguous
-        },
+        "analysis_engine": ai_response,
+
+        "summary": authoritative_summary,
 
         "findings": saved_findings
     }
@@ -922,6 +1228,66 @@ def generate_v2(
 
     db.commit()
 
+    # ========================================================
+    # CREATE PHYSICAL V2 DOCX FOR AI ANALYSIS
+    # ========================================================
+
+    v2_file_path = UPLOAD_DIR / version_2.file_name
+
+    try:
+        document = Document()
+
+        for item in revised_clauses:
+            clause_number = item.get("clause_number")
+            clause_title = item.get("clause_title")
+            clause_text = item.get("clause_text")
+
+            if clause_number and clause_title:
+                document.add_heading(
+                    f"{clause_number}. {clause_title}",
+                    level=2
+                )
+            elif clause_title:
+                document.add_heading(
+                    clause_title,
+                    level=2
+                )
+
+            if clause_text:
+                document.add_paragraph(clause_text)
+
+        document.save(v2_file_path)
+        # ========================================================
+        # AUTOMATICALLY ANALYZE GENERATED V2
+        # ========================================================
+
+        try:
+            analyze_contract(
+                version_2.id,
+                db
+            )
+
+            analyze_obligations(
+                version_2.id,
+                db
+            )
+
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "V2 was generated successfully, "
+                    f"but automatic analysis failed: {str(exc)}"
+                )
+            )
+
+    except Exception as exc:
+        raise HTTPException(
+
+            status_code=500,
+            detail=f"Failed to create V2 DOCX: {str(exc)}"
+        )
+
     return {
         "message": "Contract V2 generated successfully",
 
@@ -1222,8 +1588,27 @@ def trace_finding(
 @router.get("/{contract_id}/risk-comparison")
 def compare_risk_versions(
     contract_id: int,
+    v2_contract_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
+
+    # The comparison UI always sends both IDs explicitly. There is
+    # deliberately NO fallback: no parent lookup, no "latest V2", no
+    # name/filename/family matching. (The parameter is Optional in the
+    # signature only so a missing value returns 400 instead of
+    # FastAPI's automatic 422.)
+
+    if v2_contract_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="v2_contract_id is required. Select the contract to compare."
+        )
+
+    if v2_contract_id == contract_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Select two different contracts to compare."
+        )
 
     v1 = (
         db.query(Contract)
@@ -1239,18 +1624,14 @@ def compare_risk_versions(
 
     v2 = (
         db.query(Contract)
-        .filter(
-            Contract.parent_contract_id == v1.id,
-            Contract.version_number == 2
-        )
-        .order_by(Contract.id.desc())
+        .filter(Contract.id == v2_contract_id)
         .first()
     )
 
     if not v2:
         raise HTTPException(
             status_code=404,
-            detail="Version 2 not found. Generate V2 first."
+            detail="Comparison contract not found"
         )
 
     v1_findings = (
@@ -1497,12 +1878,17 @@ def compare_risk_versions(
         "versions": {
             "v1": {
                 "id": v1.id,
-                "version": v1.version_number
+                "version": v1.version_number,
+                "name": v1.contract_name,
+                "file_name": v1.file_name
             },
 
             "v2": {
                 "id": v2.id,
-                "version": v2.version_number
+                "version": v2.version_number,
+                "name": v2.contract_name,
+                "file_name": v2.file_name,
+                "parent_contract_id": v2.parent_contract_id
             }
         },
 

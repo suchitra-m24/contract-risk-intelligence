@@ -1,6 +1,7 @@
 /* =========================================================
    CLAUSEGUARD AI
-   Contract Risk Intelligence Frontend
+   Dashboard Application
+   Evidence-Grounded Contract Risk Intelligence
 ========================================================= */
 
 const API_BASE = "http://127.0.0.1:8000";
@@ -8,7 +9,33 @@ const API_BASE = "http://127.0.0.1:8000";
 const DEFAULT_CONTRACT_ID = 4;
 
 let dashboardData = null;
+let currentContract = null;
+let selectedFindingId = null;
 let riskChart = null;
+
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+        initializeDashboard();
+    }
+);
+
+
+async function initializeDashboard() {
+
+    const contractId =
+        getActiveContractId();
+
+    await loadDashboard(
+        contractId
+    );
+
+}
 
 
 /* =========================================================
@@ -17,156 +44,143 @@ let riskChart = null;
 
 function getActiveContractId() {
 
-    const storedId =
-        localStorage.getItem("activeContractId");
+    const stored =
+        localStorage.getItem(
+            "activeContractId"
+        );
 
-    if (storedId) {
-        return Number(storedId);
+
+    if (
+        stored &&
+        /^\d+$/.test(
+            String(stored)
+        )
+    ) {
+
+        return Number(stored);
+
     }
+
 
     return DEFAULT_CONTRACT_ID;
+
 }
-
-
-/* =========================================================
-   INITIALIZE
-========================================================= */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        loadDashboard();
-
-    }
-);
 
 
 /* =========================================================
    LOAD DASHBOARD
 ========================================================= */
 
-async function loadDashboard() {
+async function loadDashboard(
+    contractId = getActiveContractId()
+) {
 
-    const contractId =
-        getActiveContractId();
+    contractId =
+        Number(contractId);
+
+
+    if (
+        !Number.isInteger(contractId) ||
+        contractId <= 0
+    ) {
+
+        contractId =
+            DEFAULT_CONTRACT_ID;
+
+    }
+
+
+    setSystemStatus(
+        "loading",
+        "Loading contract intelligence..."
+    );
+
+
+    showLoadingState();
+
 
     try {
 
-        showLoadingState();
-
-
-        /* -------------------------------------------------
-           1. Load dashboard
-        ------------------------------------------------- */
-
-        let response =
+        const response =
             await fetch(
                 `${API_BASE}/contracts/${contractId}/dashboard`
+            );
+
+
+        const data =
+            await parseResponse(
+                response
             );
 
 
         if (!response.ok) {
 
             throw new Error(
-                `Dashboard request failed: ${response.status}`
+                extractErrorMessage(
+                    data,
+                    `Dashboard request failed: ${response.status}`
+                )
             );
 
         }
 
 
         dashboardData =
-            await response.json();
+            data;
 
 
-        /* -------------------------------------------------
-           2. Extract obligations if dashboard has none
-        ------------------------------------------------- */
-
-        if (
-            !dashboardData.obligations ||
-            dashboardData.obligations.length === 0
-        ) {
-
-            try {
-
-                const obligationResponse =
-                    await fetch(
-                        `${API_BASE}/contracts/${contractId}/obligations`,
-                        {
-                            method: "POST"
-                        }
-                    );
+        currentContract =
+            dashboardData.contract ||
+            {};
 
 
-                if (!obligationResponse.ok) {
+        /*
+         * Persist the contract currently
+         * displayed by the dashboard.
+         */
 
-                    console.warn(
-                        "Obligation extraction failed:",
-                        obligationResponse.status
-                    );
-
-                } else {
-
-                    /*
-                     * IMPORTANT:
-                     * Reload dashboard after obligations
-                     * have been saved to MySQL.
-                     */
-
-                    response =
-                        await fetch(
-                            `${API_BASE}/contracts/${contractId}/dashboard`
-                        );
+        localStorage.setItem(
+            "activeContractId",
+            String(contractId)
+        );
 
 
-                    if (response.ok) {
-
-                        dashboardData =
-                            await response.json();
-
-                    }
-
-                }
-
-            } catch (obligationError) {
-
-                console.warn(
-                    "Obligation extraction error:",
-                    obligationError
-                );
-
-            }
-
-        }
+        renderDashboard();
 
 
-        /* -------------------------------------------------
-           3. Render dashboard
-        ------------------------------------------------- */
+        /*
+         * Obligations are loaded separately.
+         * Failure here must not destroy the
+         * main risk dashboard.
+         */
 
-        renderContractInfo();
+        await loadObligations(
+            contractId
+        );
 
-        renderRiskSummary();
 
-        renderRiskChart();
-
-        renderTopRisks();
-
-        renderObligations();
+        setSystemStatus(
+            "online",
+            "Backend connected"
+        );
 
 
     } catch (error) {
 
         console.error(
-            "Dashboard error:",
+            "Dashboard loading error:",
             error
         );
 
 
-        showError(
-            "Unable to load contract dashboard. " +
-            "Make sure the FastAPI backend is running."
+        setSystemStatus(
+            "error",
+            "Backend unavailable"
+        );
+
+
+        renderDashboardError(
+            error.message
         );
 
     }
@@ -175,14 +189,33 @@ async function loadDashboard() {
 
 
 /* =========================================================
-   CONTRACT INFORMATION
+   REFRESH
 ========================================================= */
 
-function renderContractInfo() {
+async function refreshDashboard() {
+
+    const contractId =
+        currentContract?.id ||
+        currentContract?.contract_id ||
+        dashboardData?.contract?.id ||
+        getActiveContractId();
+
+
+    await loadDashboard(
+        Number(contractId)
+    );
+
+}
+
+
+/* =========================================================
+   MAIN RENDER
+========================================================= */
+
+function renderDashboard() {
 
     if (
-        !dashboardData ||
-        !dashboardData.contract
+        !dashboardData
     ) {
 
         return;
@@ -190,39 +223,70 @@ function renderContractInfo() {
     }
 
 
+    renderContractHeader();
+
+    renderRiskSummary();
+
+    renderOverallRisk();
+
+    renderRiskChart();
+
+    renderTopRisks();
+
+    renderTraceability();
+
+    renderMissingAmbiguous();
+
+    renderComparison();
+
+}
+
+
+/* =========================================================
+   CONTRACT HEADER
+========================================================= */
+
+function renderContractHeader() {
+
     const contract =
-        dashboardData.contract;
+        dashboardData.contract ||
+        {};
 
 
-    const nameElement =
-        document.getElementById(
-            "contractName"
-        );
+    const name =
+        contract.name ||
+        contract.contract_name ||
+        localStorage.getItem(
+            "activeContractName"
+        ) ||
+        "Unknown Contract";
 
 
-    const metaElement =
-        document.getElementById(
-            "contractMeta"
-        );
+    const version =
+        contract.version ??
+        contract.version_number ??
+        1;
 
 
-    if (nameElement) {
+    const fileName =
+        contract.file_name ||
+        contract.filename ||
+        localStorage.getItem(
+            "activeContractFile"
+        ) ||
+        "Contract document";
 
-        nameElement.textContent =
-            contract.name ||
-            "Unnamed Contract";
 
-    }
+    setText(
+        "contractName",
+        name
+    );
 
 
-    if (metaElement) {
-
-        metaElement.textContent =
-            `${contract.file_name || ""} • ` +
-            `${contract.file_type || "DOCUMENT"} • ` +
-            `Version ${contract.version ?? 1}`;
-
-    }
+    setText(
+        "contractMeta",
+        `${fileName} • Version ${version}`
+    );
 
 
     const versionBadge =
@@ -231,10 +295,12 @@ function renderContractInfo() {
         );
 
 
-    if (versionBadge) {
+    if (
+        versionBadge
+    ) {
 
         versionBadge.textContent =
-            `V${contract.version ?? 1}`;
+            `V${version}`;
 
     }
 
@@ -242,74 +308,284 @@ function renderContractInfo() {
 
 
 /* =========================================================
-   RISK SUMMARY
+   SUMMARY
+========================================================= */
+
+function getRiskSummary() {
+
+    return (
+        dashboardData?.summary ||
+        dashboardData?.risk_summary ||
+        dashboardData?.riskSummary ||
+        {}
+    );
+
+}
+
+
+function getNumber(
+    object,
+    ...keys
+) {
+
+    if (
+        !object
+    ) {
+
+        return 0;
+
+    }
+
+
+    for (
+        const key of keys
+    ) {
+
+        if (
+            object[key] !== undefined &&
+            object[key] !== null
+        ) {
+
+            const value =
+                Number(
+                    object[key]
+                );
+
+
+            if (
+                !Number.isNaN(value)
+            ) {
+
+                return value;
+
+            }
+
+        }
+
+    }
+
+
+    return 0;
+
+}
+
+
+/* =========================================================
+   RISK SUMMARY CARDS
 ========================================================= */
 
 function renderRiskSummary() {
 
     const summary =
-        dashboardData?.risk_summary;
+        getRiskSummary();
 
 
-    const indicator =
-        dashboardData?.risk_indicator;
+    const highRisk =
+        getNumber(
+            summary,
+            "high_risk",
+            "highRisk",
+            "high"
+        );
 
 
-    if (!summary) {
+    const risky =
+        getNumber(
+            summary,
+            "risky",
+            "risky_findings",
+            "riskyFindings"
+        );
 
-        return;
 
-    }
+    const standard =
+        getNumber(
+            summary,
+            "standard",
+            "standard_findings",
+            "standardFindings"
+        );
+
+
+    const ambiguous =
+        getNumber(
+            summary,
+            "ambiguous",
+            "ambiguous_findings",
+            "ambiguousFindings"
+        );
+
+
+    const missing =
+        getNumber(
+            summary,
+            "missing",
+            "missing_findings",
+            "missingFindings"
+        );
 
 
     setText(
         "highRisk",
-        summary.high_risk ?? 0
+        highRisk
     );
 
 
     setText(
         "riskyFindings",
-        summary.risky ?? 0
+        risky
     );
 
 
     setText(
         "standardFindings",
-        summary.standard ?? 0
+        standard
     );
 
 
-    if (indicator) {
-
-        setText(
-            "riskIndicator",
-            indicator.level || "UNKNOWN"
-        );
+    setText(
+        "ambiguousFindings",
+        ambiguous
+    );
 
 
-        setText(
-            "riskPoints",
-            indicator.points ?? 0
-        );
+    setText(
+        "missingFindings",
+        missing
+    );
 
 
-        updateRiskIndicator(
-            indicator.level
-        );
+    const findings =
+        getFindings();
 
-    }
+
+    const priorityCount =
+        findings.filter(
+            finding => {
+
+                const status =
+                    String(
+                        finding.status ||
+                        ""
+                    ).toUpperCase();
+
+
+                const severity =
+                    String(
+                        finding.severity ||
+                        ""
+                    ).toUpperCase();
+
+
+                return (
+                    status === "RISKY" ||
+                    severity === "HIGH"
+                );
+
+            }
+        ).length;
+
+
+    setText(
+        "riskCount",
+        priorityCount
+    );
 
 }
 
 
 /* =========================================================
-   RISK INDICATOR
+   OVERALL RISK
 ========================================================= */
 
-function updateRiskIndicator(
-    level
-) {
+function renderOverallRisk() {
+
+    const summary =
+        getRiskSummary();
+
+
+    const highRisk =
+        getNumber(
+            summary,
+            "high_risk",
+            "highRisk"
+        );
+
+
+    const risky =
+        getNumber(
+            summary,
+            "risky",
+            "risky_findings"
+        );
+
+
+    const standard =
+        getNumber(
+            summary,
+            "standard",
+            "standard_findings"
+        );
+
+
+    const ambiguous =
+        getNumber(
+            summary,
+            "ambiguous",
+            "ambiguous_findings"
+        );
+
+
+    const missing =
+        getNumber(
+            summary,
+            "missing",
+            "missing_findings"
+        );
+
+
+    /*
+     * Weighted risk score:
+     *
+     * HIGH       = 3
+     * RISKY      = 2
+     * AMBIGUOUS  = 1
+     * STANDARD   = 0
+     * MISSING    = 0
+     */
+
+    const riskPoints =
+        (
+            highRisk * 3
+        ) +
+        (
+            risky * 2
+        ) +
+        ambiguous;
+
+
+    const totalFindings =
+        highRisk +
+        risky +
+        standard +
+        ambiguous +
+        missing;
+
+
+    const maxPoints =
+        totalFindings * 3;
+
+
+    const percentage =
+        maxPoints > 0
+            ? Math.round(
+                (
+                    riskPoints /
+                    maxPoints
+                ) * 100
+            )
+            : 0;
+
 
     const indicator =
         document.getElementById(
@@ -323,76 +599,119 @@ function updateRiskIndicator(
         );
 
 
-    if (!indicator) {
+    if (
+        indicator
+    ) {
 
-        return;
+        indicator.classList.remove(
+            "risk-high",
+            "risk-medium",
+            "risk-low"
+        );
+
+
+        if (
+            highRisk > 0
+        ) {
+
+            indicator.classList.add(
+                "risk-high"
+            );
+
+
+            indicator.textContent =
+                "HIGH";
+
+        } else if (
+            risky > 0 ||
+            ambiguous > 0 ||
+            missing > 0
+        ) {
+
+            indicator.classList.add(
+                "risk-medium"
+            );
+
+
+            indicator.textContent =
+                "REVIEW";
+
+        } else {
+
+            indicator.classList.add(
+                "risk-low"
+            );
+
+
+            indicator.textContent =
+                "LOW";
+
+        }
 
     }
 
 
-    const normalized =
-        String(
-            level || ""
-        ).toUpperCase();
-
-
-    indicator.textContent =
-        normalized || "UNKNOWN";
+    setText(
+        "riskPoints",
+        riskPoints
+    );
 
 
     if (
-        normalized === "HIGH"
+        progress
     ) {
 
-        indicator.style.background =
-            "rgba(255, 92, 108, 0.12)";
-
-        indicator.style.color =
-            "#ff5c6c";
-
-
-        if (progress) {
-
-            progress.style.width =
-                "90%";
-
-        }
-
-    } else if (
-        normalized === "MEDIUM"
-    ) {
-
-        indicator.style.background =
-            "rgba(255, 180, 84, 0.12)";
-
-        indicator.style.color =
-            "#ffb454";
-
-
-        if (progress) {
-
-            progress.style.width =
-                "60%";
-
-        }
-
-    } else {
-
-        indicator.style.background =
-            "rgba(39, 209, 127, 0.12)";
-
-        indicator.style.color =
-            "#27d17f";
-
-
-        if (progress) {
-
-            progress.style.width =
-                "25%";
-
-        }
+        progress.style.width =
+            `${Math.min(
+                percentage,
+                100
+            )}%`;
 
     }
+
+}
+
+
+/* =========================================================
+   FINDINGS
+========================================================= */
+
+function getFindings() {
+
+    if (
+        Array.isArray(
+            dashboardData?.findings
+        )
+    ) {
+
+        return dashboardData.findings;
+
+    }
+
+
+    if (
+        Array.isArray(
+            dashboardData?.top_risks
+        )
+    ) {
+
+        return dashboardData.top_risks;
+
+    }
+
+
+    if (
+        Array.isArray(
+            dashboardData?.risks
+        )
+    ) {
+
+        return dashboardData.risks;
+
+    }
+
+
+    return [];
 
 }
 
@@ -409,44 +728,11 @@ function renderRiskChart() {
         );
 
 
-    if (!canvas) {
+    if (
+        !canvas
+    ) {
 
         return;
-
-    }
-
-
-    const summary =
-        dashboardData?.risk_summary || {};
-
-
-    const standard =
-        Number(
-            summary.standard || 0
-        );
-
-
-    const risky =
-        Number(
-            summary.risky || 0
-        );
-
-
-    const ambiguous =
-        Number(
-            summary.ambiguous || 0
-        );
-
-
-    const missing =
-        Number(
-            summary.missing || 0
-        );
-
-
-    if (riskChart) {
-
-        riskChart.destroy();
 
     }
 
@@ -464,116 +750,111 @@ function renderRiskChart() {
     }
 
 
+    const summary =
+        getRiskSummary();
+
+
+    const highRisk =
+        getNumber(
+            summary,
+            "high_risk",
+            "highRisk"
+        );
+
+
+    const risky =
+        getNumber(
+            summary,
+            "risky",
+            "risky_findings"
+        );
+
+
+    const standard =
+        getNumber(
+            summary,
+            "standard",
+            "standard_findings"
+        );
+
+
+    const ambiguous =
+        getNumber(
+            summary,
+            "ambiguous",
+            "ambiguous_findings"
+        );
+
+
+    const missing =
+        getNumber(
+            summary,
+            "missing",
+            "missing_findings"
+        );
+
+
+    if (
+        riskChart
+    ) {
+
+        riskChart.destroy();
+
+    }
+
+
     riskChart =
         new Chart(
-            canvas,
+            canvas.getContext("2d"),
             {
-
                 type: "doughnut",
 
                 data: {
 
                     labels: [
-                        "Standard",
+                        "High Risk",
                         "Risky",
+                        "Standard",
                         "Ambiguous",
                         "Missing"
                     ],
 
                     datasets: [
-
                         {
-
                             data: [
-                                standard,
+                                highRisk,
                                 risky,
+                                standard,
                                 ambiguous,
                                 missing
                             ],
 
                             backgroundColor: [
+                                "#ef4444",
+                                "#f59e0b",
                                 "#27d17f",
-                                "#ff5c6c",
-                                "#ffb454",
-                                "#6fa8ff"
+                                "#8b5cf6",
+                                "#64748b"
                             ],
 
-                            borderColor:
-                                "#0d1211",
-
-                            borderWidth:
-                                4,
-
-                            hoverOffset:
-                                5
-
+                            borderWidth: 0
                         }
-
                     ]
 
                 },
 
-
                 options: {
 
-                    responsive:
-                        true,
+                    responsive: true,
 
-                    maintainAspectRatio:
-                        false,
+                    maintainAspectRatio: false,
 
-                    cutout:
-                        "70%",
+                    cutout: "72%",
 
                     plugins: {
 
                         legend: {
-
-                            position:
-                                "bottom",
-
-                            labels: {
-
-                                color:
-                                    "#a5b2ae",
-
-                                padding:
-                                    18,
-
-                                usePointStyle:
-                                    true,
-
-                                pointStyle:
-                                    "circle",
-
-                                font: {
-                                    size: 10
-                                }
-
-                            }
-
-                        },
-
-                        tooltip: {
-
-                            backgroundColor:
-                                "#151d1b",
-
-                            titleColor:
-                                "#f2f7f5",
-
-                            bodyColor:
-                                "#a5b2ae",
-
-                            borderColor:
-                                "rgba(255,255,255,0.08)",
-
-                            borderWidth:
-                                1,
-
-                            padding:
-                                10
-
+                            display: false
                         }
 
                     }
@@ -593,171 +874,341 @@ function renderRiskChart() {
 function renderTopRisks() {
 
     const container =
-        document.getElementById(
-            "topRisks"
-        );
-
-
-    const count =
-        document.getElementById(
-            "riskCount"
-        );
-
+        document.getElementById("topRisks");
 
     if (!container) {
-
         return;
-
     }
 
+    const findings = getFindings();
 
-    const risks =
-        dashboardData?.top_risks || [];
+    const priorityFindings =
+        findings.filter(finding => {
 
+            const status =
+                String(
+                    finding.status || ""
+                ).toUpperCase();
 
-    if (count) {
+            const severity =
+                String(
+                    finding.severity || ""
+                ).toUpperCase();
 
-        count.textContent =
-            risks.length;
+            return (
+                status === "RISKY" ||
+                severity === "HIGH"
+            );
+        });
 
-    }
-
-
-    if (
-        risks.length === 0
-    ) {
+    if (priorityFindings.length === 0) {
 
         container.innerHTML = `
-            <div class="loading">
-                No priority risks detected.
+            <div class="risk-empty-state">
+
+                <strong>
+                    No priority risks detected
+                </strong>
+
+                <span>
+                    No high-severity or risky
+                    playbook deviations were found.
+                </span>
+
             </div>
         `;
 
         return;
-
     }
 
-
     container.innerHTML =
-        risks
-            .map(
-                risk => {
+        priorityFindings
+            .slice(0, 5)
+            .map(finding => {
 
-                    const findingId =
-                        Number(
-                            risk.finding_id
-                        );
+                const findingId =
+                    finding.finding_id ??
+                    finding.id;
 
+                const category =
+                    escapeHtml(
+                        finding.category ||
+                        "Risk Finding"
+                    );
 
-                    const category =
-                        escapeHtml(
-                            risk.category ||
-                            "Unknown"
-                        );
+                const ruleId =
+                    escapeHtml(
+                        finding.rule_id ||
+                        "PLAYBOOK-RULE"
+                    );
 
+                const severity =
+                    String(
+                        finding.severity ||
+                        "HIGH"
+                    ).toUpperCase();
 
-                    const severity =
-                        escapeHtml(
-                            risk.severity ||
-                            "UNKNOWN"
-                        );
+                const status =
+                    String(
+                        finding.status ||
+                        "RISKY"
+                    ).toUpperCase();
 
+                const reason =
+                    escapeHtml(
+                        finding.reason ||
+                        "This finding requires review against the applicable playbook requirement."
+                    );
 
-                    const actual =
-                        escapeHtml(
-                            risk.actual ||
-                            "Not specified"
-                        );
+                const actual =
+                    escapeHtml(
+                        finding.actual ||
+                        "Not specified"
+                    );
 
+                const expected =
+                    escapeHtml(
+                        finding.expected ||
+                        "Not specified"
+                    );
 
-                    const expected =
-                        escapeHtml(
-                            risk.expected ||
-                            "Not specified"
-                        );
+                const evidence =
+                    escapeHtml(
+                        finding.evidence ||
+                        finding.clause_text ||
+                        ""
+                    );
 
+                return `
+                    <article
+                        class="risk-intelligence-card"
+                    >
 
-                    const reason =
-                        escapeHtml(
-                            risk.reason ||
-                            ""
-                        );
+                        <div
+                            class="risk-card-header"
+                        >
 
+                            <div>
 
-                    return `
-
-                        <div class="risk-item">
-
-                            <div class="risk-item-top">
-
-                                <div class="risk-category">
-
-                                    <span class="risk-dot"></span>
-
+                                <span
+                                    class="risk-card-category"
+                                >
                                     ${category}
+                                </span>
 
-                                </div>
-
-
-                                <span class="severity-badge">
-
-                                    ${severity}
-
+                                <span
+                                    class="risk-card-rule"
+                                >
+                                    ${ruleId}
                                 </span>
 
                             </div>
 
-
-                            <div class="risk-detail">
-
-                                ${reason}
-
-                            </div>
-
-
-                            <div class="risk-actual">
-
-                                Actual:
-                                ${actual}
-
-                                &nbsp; • &nbsp;
-
-                                Expected:
-                                ${expected}
-
-                            </div>
-
-
-                            <button
-                                class="view-evidence"
-                                onclick="loadTrace(${findingId})"
+                            <span
+                                class="risk-severity ${status.toLowerCase()} ${severity.toLowerCase()}"
                             >
-
-                                View Evidence →
-
-                            </button>
+                                ${status}
+                            </span>
 
                         </div>
 
-                    `;
+                        <div
+                            class="risk-card-reason"
+                        >
 
-                }
-            )
+                            <span class="risk-card-reason-label">
+                                WHY THIS WAS FLAGGED
+                            </span>
+
+                            <p>
+                                ${reason}
+                            </p>
+
+                        </div>
+
+                        ${
+                            evidence
+                                ? `
+                                    <div
+                                        class="risk-card-evidence"
+                                    >
+
+                                        <span>
+                                            CONTRACT EVIDENCE
+                                        </span>
+
+                                        <p>
+                                            "${evidence}"
+                                        </p>
+
+                                    </div>
+                                  `
+                                : ""
+                        }
+
+                        <div
+                            class="risk-actual-expected"
+                        >
+
+                            <div
+                                class="risk-value-box"
+                            >
+
+                                <span>
+                                    ACTUAL
+                                </span>
+
+                                <strong>
+                                    ${actual}
+                                </strong>
+
+                            </div>
+
+                            <div
+                                class="risk-value-box"
+                            >
+
+                                <span>
+                                    EXPECTED
+                                </span>
+
+                                <strong>
+                                    ${expected}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                        <div
+                            class="risk-card-footer"
+                        >
+
+                            <span>
+                                ${status}
+                            </span>
+
+                            ${
+                                findingId
+                                    ? `
+                                        <button
+                                            type="button"
+                                            class="evidence-button"
+                                            onclick="openFindingTrace(${Number(findingId)})"
+                                        >
+                                            View Evidence →
+                                        </button>
+                                      `
+                                    : ""
+                            }
+
+                        </div>
+
+                    </article>
+                `;
+
+            })
             .join("");
+}
+
+
+/* =========================================================
+   TRACEABILITY
+========================================================= */
+
+function renderTraceability() {
+
+    const findings =
+        getFindings();
+
+
+    const summary =
+        getRiskSummary();
+
+
+    const total =
+        getNumber(
+            summary,
+            "finding_count",
+            "total_findings",
+            "findings_count"
+        ) ||
+        findings.length;
+
+
+    const traceable =
+        findings.filter(
+            finding => {
+
+                const id =
+                    finding.finding_id ??
+                    finding.id;
+
+
+                const rule =
+                    finding.rule_id;
+
+
+                const evidence =
+                    finding.evidence ||
+                    finding.clause_text ||
+                    finding.reason;
+
+
+                return (
+                    id &&
+                    rule &&
+                    evidence
+                );
+
+            }
+        ).length;
+
+
+    const percentage =
+        total > 0
+            ? Math.round(
+                (
+                    traceable /
+                    total
+                ) * 100
+            )
+            : 0;
+
+
+    setText(
+        "evidenceCoverage",
+        `${percentage}%`
+    );
+
+
+    setText(
+        "traceabilityCount",
+        `${traceable}/${total} traceable`
+    );
 
 }
 
 
 /* =========================================================
-   EVIDENCE TRACE
+   OPEN FINDING TRACE
 ========================================================= */
 
-async function loadTrace(
+async function openFindingTrace(
     findingId
 ) {
 
-    const contractId =
-        getActiveContractId();
+    if (
+        !findingId
+    ) {
+
+        return;
+
+    }
+
+
+    selectedFindingId =
+        findingId;
 
 
     const panel =
@@ -766,7 +1217,9 @@ async function loadTrace(
         );
 
 
-    if (!panel) {
+    if (
+        !panel
+    ) {
 
         return;
 
@@ -777,15 +1230,29 @@ async function loadTrace(
 
         <div class="trace-empty">
 
-            <div class="loading">
-
-                Loading evidence trace...
-
+            <div class="trace-icon">
+                ...
             </div>
+
+            <h4>
+                Loading evidence trace
+            </h4>
+
+            <p>
+                Retrieving contract evidence
+                and playbook rule...
+            </p>
 
         </div>
 
     `;
+
+
+    const contractId =
+        currentContract?.id ||
+        currentContract?.contract_id ||
+        dashboardData?.contract?.id ||
+        getActiveContractId();
 
 
     try {
@@ -796,21 +1263,28 @@ async function loadTrace(
             );
 
 
-        if (!response.ok) {
+        const trace =
+            await parseResponse(
+                response
+            );
+
+
+        if (
+            !response.ok
+        ) {
 
             throw new Error(
-                `Trace request failed: ${response.status}`
+                extractErrorMessage(
+                    trace,
+                    `Trace request failed: ${response.status}`
+                )
             );
 
         }
 
 
-        const data =
-            await response.json();
-
-
-        renderTrace(
-            data
+        renderTracePanel(
+            trace
         );
 
 
@@ -850,11 +1324,11 @@ async function loadTrace(
 
 
 /* =========================================================
-   RENDER TRACE
+   TRACE PANEL
 ========================================================= */
 
-function renderTrace(
-    data
+function renderTracePanel(
+    trace
 ) {
 
     const panel =
@@ -863,145 +1337,425 @@ function renderTrace(
         );
 
 
-    if (!panel) {
+    if (
+        !panel
+    ) {
 
         return;
 
     }
 
 
+    const contract =
+        trace.contract ||
+        {};
+
+
+    const finding =
+        trace.finding ||
+        {};
+
+
     const evidence =
-        data.contract_evidence || {};
+        trace.contract_evidence ||
+        {};
 
 
     const rule =
-        data.playbook_rule || {};
+        trace.playbook_rule ||
+        {};
 
 
     const assessment =
-        data.assessment || {};
+        trace.assessment ||
+        {};
+
+
+    const severity =
+        String(
+            finding.severity ||
+            "MEDIUM"
+        ).toUpperCase();
+
+
+    const clauseNumber =
+        escapeHtml(
+            evidence.clause_number ||
+            "Clause"
+        );
+
+
+    const clauseTitle =
+        escapeHtml(
+            evidence.clause_title ||
+            ""
+        );
+
+
+    const evidenceText =
+        escapeHtml(
+            evidence.text ||
+            finding.evidence ||
+            "No contract evidence available."
+        );
+
+
+    const requirement =
+        escapeHtml(
+            rule.requirement ||
+            finding.expected ||
+            "No playbook requirement available."
+        );
+
+
+    const actual =
+        escapeHtml(
+            assessment.actual ||
+            finding.actual ||
+            "Not specified"
+        );
+
+
+    const expected =
+        escapeHtml(
+            assessment.expected ||
+            finding.expected ||
+            "Not specified"
+        );
+
+
+    const reason =
+        escapeHtml(
+            assessment.reason ||
+            finding.reason ||
+            "The contract clause does not satisfy the applicable playbook requirement."
+        );
+
+
+    const action =
+        escapeHtml(
+            assessment.recommended_action ||
+            finding.recommended_action ||
+            "Review and amend the clause to satisfy the applicable playbook requirement."
+        );
 
 
     panel.innerHTML = `
 
-        <div class="trace-box">
+        <div class="trace-header">
 
-            <div class="trace-box-header">
+            <div>
 
-                <span class="trace-box-title">
-
-                    Contract Evidence
-
+                <span
+                    class="trace-grounded-badge"
+                >
+                    ✓ SOURCE GROUNDED
                 </span>
 
 
-                <span class="trace-box-label">
-
-                    CLAUSE
+                <h3>
                     ${escapeHtml(
-                        evidence.clause_number ||
-                        evidence.clause_id ||
-                        "—"
+                        finding.category ||
+                        "Risk Finding"
+                    )}
+                </h3>
+
+
+                <p>
+                    ${escapeHtml(
+                        contract.name ||
+                        contract.contract_name ||
+                        "Contract"
                     )}
 
-                </span>
+                    • V${escapeHtml(
+                        contract.version ??
+                        contract.version_number ??
+                        1
+                    )}
+                </p>
 
             </div>
 
 
-            <p class="trace-text">
-
-                ${escapeHtml(
-                    evidence.text ||
-                    "No evidence available."
-                )}
-
-            </p>
+            <span
+                class="trace-severity ${severity.toLowerCase()}"
+            >
+                ${severity}
+            </span>
 
         </div>
 
 
-        <div class="trace-box">
+        <!-- STEP 01 -->
 
-            <div class="trace-box-header">
+        <div class="trace-step">
 
-                <span class="trace-box-title">
+            <div class="trace-step-marker">
+                01
+            </div>
 
-                    Playbook Rule
 
+            <div class="trace-step-content">
+
+                <span class="trace-step-label">
+                    CONTRACT EVIDENCE
                 </span>
 
 
-                <span class="trace-box-label">
+                <h4
+                    class="trace-clause-title"
+                >
+                    ${clauseNumber}
+                    ${clauseTitle}
+                </h4>
 
+
+                <div
+                    class="evidence-quote"
+                >
+                    "${evidenceText}"
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- STEP 02 -->
+
+        <div class="trace-step">
+
+            <div class="trace-step-marker">
+                02
+            </div>
+
+
+            <div class="trace-step-content">
+
+                <span class="trace-step-label">
+                    PLAYBOOK RULE
+                </span>
+
+
+                <div
+                    class="rule-id-badge"
+                >
                     ${escapeHtml(
                         rule.rule_id ||
-                        "RULE"
+                        finding.rule_id ||
+                        "PLAYBOOK-RULE"
                     )}
+                </div>
 
-                </span>
+
+                <div
+                    class="playbook-requirement"
+                >
+                    ${requirement}
+                </div>
 
             </div>
-
-
-            <p class="trace-rule">
-
-                ${escapeHtml(
-                    rule.requirement ||
-                    rule.description ||
-                    "No rule description available."
-                )}
-
-            </p>
 
         </div>
 
 
-        <div class="assessment">
+        <!-- STEP 03 -->
 
-            <strong>
-                Why this was flagged
-            </strong>
+        <div class="trace-step">
+
+            <div class="trace-step-marker">
+                03
+            </div>
+
+
+            <div class="trace-step-content">
+
+                <span class="trace-step-label">
+                    ASSESSMENT
+                </span>
+
+
+                <div
+                    class="assessment-grid"
+                >
+
+                    <div
+                        class="assessment-field"
+                    >
+
+                        <span>
+                            ACTUAL
+                        </span>
+
+                        <strong>
+                            ${actual}
+                        </strong>
+
+                    </div>
+
+
+                    <div
+                        class="assessment-field"
+                    >
+
+                        <span>
+                            EXPECTED
+                        </span>
+
+                        <strong>
+                            ${expected}
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="assessment-reason"
+                >
+
+                    <span>
+                        WHY THIS WAS FLAGGED
+                    </span>
+
+                    <p>
+                        ${reason}
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- STEP 04 -->
+
+        <div class="trace-step">
+
+            <div class="trace-step-marker">
+                04
+            </div>
+
+
+            <div class="trace-step-content">
+
+                <span class="trace-step-label">
+                    RECOMMENDED ACTION
+                </span>
+
+
+                <div
+                    class="recommended-action"
+                >
+                    ${action}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div
+            class="trace-verification"
+        >
+
+            <span>
+                ✓ TRACEABILITY VERIFIED
+            </span>
 
 
             <p>
-
+                Finding
                 ${escapeHtml(
-                    assessment.reason ||
-                    "No assessment reason available."
+                    finding.id ||
+                    selectedFindingId ||
+                    ""
                 )}
-
-            </p>
-
-
-            <p>
-
-                <strong>
-                    Recommended action:
-                </strong>
-
-                ${escapeHtml(
-                    assessment.recommended_action ||
-                    "Review the contract clause."
-                )}
-
+                is connected to contract evidence
+                and the applicable playbook rule.
             </p>
 
         </div>
 
     `;
 
-
-    panel.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-    });
-
 }
 
 
 /* =========================================================
    OBLIGATIONS
+========================================================= */
+
+async function loadObligations(
+    contractId
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_BASE}/contracts/${contractId}/obligations`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+        const data =
+            await parseResponse(
+                response
+            );
+
+
+        if (
+            !response.ok
+        ) {
+
+            throw new Error(
+                extractErrorMessage(
+                    data,
+                    `Obligation extraction failed: ${response.status}`
+                )
+            );
+
+        }
+
+
+        dashboardData.obligations =
+            data.obligations ||
+            data.items ||
+            data.results ||
+            [];
+
+
+        renderObligations();
+
+
+    } catch (error) {
+
+        console.warn(
+            "Obligation extraction error:",
+            error
+        );
+
+
+        dashboardData.obligations =
+            dashboardData.obligations ||
+            [];
+
+
+        renderObligations();
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER OBLIGATIONS
 ========================================================= */
 
 function renderObligations() {
@@ -1018,7 +1772,9 @@ function renderObligations() {
         );
 
 
-    if (!container) {
+    if (
+        !container
+    ) {
 
         return;
 
@@ -1026,10 +1782,13 @@ function renderObligations() {
 
 
     const obligations =
-        dashboardData?.obligations || [];
+        dashboardData?.obligations ||
+        [];
 
 
-    if (count) {
+    if (
+        count
+    ) {
 
         count.textContent =
             obligations.length;
@@ -1043,9 +1802,27 @@ function renderObligations() {
 
         container.innerHTML = `
 
-            <div class="loading">
+            <div
+                class="obligation-empty-state"
+            >
 
-                No obligations extracted.
+                <div
+                    class="obligation-empty-icon"
+                >
+                    ✓
+                </div>
+
+
+                <strong>
+                    No obligations detected
+                </strong>
+
+
+                <span>
+                    No actionable contractual
+                    obligations were extracted
+                    from this version.
+                </span>
 
             </div>
 
@@ -1059,7 +1836,10 @@ function renderObligations() {
     container.innerHTML =
         obligations
             .map(
-                obligation => {
+                (
+                    obligation,
+                    index
+                ) => {
 
                     const actor =
                         escapeHtml(
@@ -1080,7 +1860,7 @@ function renderObligations() {
                             ? escapeHtml(
                                 obligation.deadline
                             )
-                            : "";
+                            : "Not specified";
 
 
                     const trigger =
@@ -1088,73 +1868,164 @@ function renderObligations() {
                             ? escapeHtml(
                                 obligation.trigger_condition
                             )
-                            : "";
+                            : "Not specified";
 
 
                     const evidence =
                         escapeHtml(
                             obligation.evidence ||
-                            ""
+                            "No source evidence available."
+                        );
+
+
+                    const clauseNumber =
+                        escapeHtml(
+                            obligation.clause_number ||
+                            obligation.clause_id ||
+                            "—"
+                        );
+
+
+                    const clauseTitle =
+                        escapeHtml(
+                            obligation.clause_title ||
+                            "Source clause"
                         );
 
 
                     return `
 
-                        <div class="obligation-item">
+                        <article
+                            class="obligation-intelligence-card"
+                        >
 
-                            <div class="obligation-actor">
+                            <div
+                                class="obligation-card-header"
+                            >
 
-                                ${actor}
+                                <div
+                                    class="obligation-number"
+                                >
+                                    ${String(
+                                        index + 1
+                                    ).padStart(
+                                        2,
+                                        "0"
+                                    )}
+                                </div>
+
+
+                                <div
+                                    class="obligation-party"
+                                >
+
+                                    <span
+                                        class="obligation-label"
+                                    >
+                                        RESPONSIBLE PARTY
+                                    </span>
+
+
+                                    <strong>
+                                        ${actor}
+                                    </strong>
+
+                                </div>
+
+
+                                <span
+                                    class="obligation-source-badge"
+                                >
+                                    ✓ SOURCE LINKED
+                                </span>
+
+                            </div>
+
+
+                            <div
+                                class="obligation-main"
+                            >
+
+                                <span
+                                    class="obligation-label"
+                                >
+                                    OBLIGATION
+                                </span>
+
+
+                                <h4>
+                                    ${action}
+                                </h4>
 
                             </div>
 
 
-                            <div class="obligation-action">
+                            <div
+                                class="obligation-detail-grid"
+                            >
 
-                                ${action}
+                                <div
+                                    class="obligation-detail"
+                                >
 
-                            </div>
+                                    <span>
+                                        DEADLINE
+                                    </span>
 
+                                    <strong>
+                                        ${deadline}
+                                    </strong>
 
-                            <div class="obligation-meta">
-
-                                ${
-                                    deadline
-                                        ? `
-                                            <span class="obligation-tag">
-
-                                                Deadline:
-                                                ${deadline}
-
-                                            </span>
-                                          `
-                                        : ""
-                                }
+                                </div>
 
 
-                                ${
-                                    trigger
-                                        ? `
-                                            <span class="obligation-tag">
+                                <div
+                                    class="obligation-detail"
+                                >
 
-                                                Trigger:
-                                                ${trigger}
+                                    <span>
+                                        TRIGGER
+                                    </span>
 
-                                            </span>
-                                          `
-                                        : ""
-                                }
+                                    <strong>
+                                        ${trigger}
+                                    </strong>
+
+                                </div>
 
                             </div>
 
 
-                            <div class="obligation-evidence">
+                            <div
+                                class="obligation-source"
+                            >
 
-                                ${evidence}
+                                <div
+                                    class="obligation-source-header"
+                                >
+
+                                    <span>
+                                        SOURCE EVIDENCE
+                                    </span>
+
+
+                                    <small>
+                                        CLAUSE
+                                        ${clauseNumber}
+                                        •
+                                        ${clauseTitle}
+                                    </small>
+
+                                </div>
+
+
+                                <p>
+                                    "${evidence}"
+                                </p>
 
                             </div>
 
-                        </div>
+                        </article>
 
                     `;
 
@@ -1166,14 +2037,28 @@ function renderObligations() {
 
 
 /* =========================================================
+   MISSING / AMBIGUOUS
+========================================================= */
+
+function renderMissingAmbiguous() {
+
+    /*
+     * Reserved for the dedicated
+     * missing/ambiguous UI.
+     *
+     * The current dashboard already
+     * displays these values in the
+     * summary cards.
+     */
+
+}
+
+
+/* =========================================================
    VERSION COMPARISON
 ========================================================= */
 
-async function loadComparison() {
-
-    const contractId =
-        getActiveContractId();
-
+async function renderComparison() {
 
     const container =
         document.getElementById(
@@ -1181,28 +2066,29 @@ async function loadComparison() {
         );
 
 
-    if (!container) {
+    if (
+        !container
+    ) {
 
         return;
 
     }
 
 
-    container.innerHTML = `
+    const contractId =
+        currentContract?.id ||
+        currentContract?.contract_id ||
+        dashboardData?.contract?.id ||
+        getActiveContractId();
 
-        <div class="comparison-placeholder">
 
-            <strong>
-                Comparing V1 and V2...
-            </strong>
+    if (
+        !contractId
+    ) {
 
-            <span>
-                Loading risk change intelligence.
-            </span>
+        return;
 
-        </div>
-
-    `;
+    }
 
 
     try {
@@ -1213,47 +2099,47 @@ async function loadComparison() {
             );
 
 
-        if (!response.ok) {
+        const data =
+            await parseResponse(
+                response
+            );
+
+
+        if (
+            !response.ok
+        ) {
 
             throw new Error(
-                `Comparison request failed: ${response.status}`
+                extractErrorMessage(
+                    data,
+                    "Comparison unavailable"
+                )
             );
 
         }
 
 
-        const data =
-            await response.json();
-
-
-        renderComparison(
+        renderComparisonContent(
+            container,
             data
         );
 
 
     } catch (error) {
 
-        console.error(
-            "Comparison error:",
-            error
+        console.info(
+            "Comparison preview unavailable:",
+            error.message
         );
 
 
-        container.innerHTML = `
-
-            <div class="comparison-placeholder">
-
-                <strong>
-                    V2 comparison unavailable
-                </strong>
-
-                <span>
-                    This contract may not have a V2 version yet.
-                </span>
-
-            </div>
-
-        `;
+        /*
+         * Do not replace the existing
+         * comparison UI with an error.
+         *
+         * The full comparison page
+         * can still be opened.
+         */
 
     }
 
@@ -1261,161 +2147,243 @@ async function loadComparison() {
 
 
 /* =========================================================
-   RENDER COMPARISON
+   COMPARISON CONTENT
 ========================================================= */
 
-function renderComparison(
+function renderComparisonContent(
+    container,
     data
 ) {
 
-    const container =
-        document.getElementById(
-            "comparison"
+    const comparison =
+        data.comparison ||
+        data;
+
+
+    const v1 =
+        comparison.v1 ||
+        comparison.version_1 ||
+        comparison.version1 ||
+        {};
+
+
+    const v2 =
+        comparison.v2 ||
+        comparison.version_2 ||
+        comparison.version2 ||
+        {};
+
+
+    const reduced =
+        getNumber(
+            comparison,
+            "risks_reduced",
+            "risk_reduced",
+            "riskReduced"
         );
 
 
-    if (!container) {
-
-        return;
-
-    }
-
-
-    const highReduction =
-        Number(
-            data.high_risk_reduction ||
-            0
+    const increased =
+        getNumber(
+            comparison,
+            "risks_increased",
+            "risk_increased",
+            "riskIncreased"
         );
 
 
-    const improvement =
-        Number(
-            data.net_risk_improvement ||
-            0
+    const unchanged =
+        getNumber(
+            comparison,
+            "unchanged",
+            "no_material_change",
+            "noMaterialChange"
         );
 
 
-    const risksReduced =
-        Number(
-            data.risks_reduced ||
-            0
+    const resolved =
+        getNumber(
+            comparison,
+            "risks_resolved",
+            "risk_resolved"
+        );
+
+
+    const newRisks =
+        getNumber(
+            comparison,
+            "new_risks",
+            "newRisks"
+        );
+
+
+    const net =
+        getNumber(
+            comparison,
+            "net_risk_improvement",
+            "netRiskImprovement"
+        );
+
+
+    const regression =
+        Boolean(
+            comparison.risk_regression ??
+            comparison.riskRegression ??
+            false
         );
 
 
     container.innerHTML = `
 
-        <div class="comparison-stat">
+        <div
+            class="comparison-summary"
+        >
 
-            <div class="comparison-stat-label">
-                V1 HIGH RISKS
+            <div>
+
+                <span>
+                    VERSION 1
+                </span>
+
+
+                <strong>
+                    ${escapeHtml(
+                        v1.name ||
+                        v1.contract_name ||
+                        v1.file_name ||
+                        "V1"
+                    )}
+                </strong>
+
             </div>
 
-            <div class="comparison-stat-value bad">
-                ${data.v1_high_risk ?? 0}
-            </div>
-
-        </div>
-
-
-        <div class="comparison-stat">
-
-            <div class="comparison-stat-label">
-                V2 HIGH RISKS
-            </div>
-
-            <div class="comparison-stat-value good">
-                ${data.v2_high_risk ?? 0}
-            </div>
-
-        </div>
-
-
-        <div class="comparison-stat">
-
-            <div class="comparison-stat-label">
-                HIGH RISK REDUCTION
-            </div>
-
-            <div class="comparison-stat-value good">
-                ↓ ${highReduction}
-            </div>
-
-        </div>
-
-
-        <div class="comparison-stat">
-
-            <div class="comparison-stat-label">
-                NET IMPROVEMENT
-            </div>
-
-            <div class="comparison-stat-value good">
-                +${improvement}
-            </div>
-
-        </div>
-
-
-        <div class="comparison-stat">
-
-            <div class="comparison-stat-label">
-                V1 RISKY FINDINGS
-            </div>
-
-            <div class="comparison-stat-value bad">
-                ${data.v1_risky ?? 0}
-            </div>
-
-        </div>
-
-
-        <div class="comparison-stat">
-
-            <div class="comparison-stat-label">
-                V2 RISKY FINDINGS
-            </div>
-
-            <div class="comparison-stat-value good">
-                ${data.v2_risky ?? 0}
-            </div>
-
-        </div>
-
-
-        <div class="comparison-stat">
-
-            <div class="comparison-stat-label">
-                RISKS REDUCED
-            </div>
-
-            <div class="comparison-stat-value good">
-                ${risksReduced}
-            </div>
-
-        </div>
-
-
-        <div class="comparison-stat">
-
-            <div class="comparison-stat-label">
-                RISK REGRESSION
-            </div>
 
             <div
-                class="comparison-stat-value ${
-                    data.risk_regression
-                        ? "bad"
-                        : "good"
-                }"
+                class="comparison-arrow"
             >
+                →
+            </div>
 
-                ${
-                    data.risk_regression
-                        ? "YES"
-                        : "NO"
-                }
+
+            <div>
+
+                <span>
+                    VERSION 2
+                </span>
+
+
+                <strong>
+                    ${escapeHtml(
+                        v2.name ||
+                        v2.contract_name ||
+                        v2.file_name ||
+                        "V2"
+                    )}
+                </strong>
 
             </div>
+
+        </div>
+
+
+        <div
+            class="comparison-results"
+        >
+
+            <div
+                class="comparison-result reduced"
+            >
+
+                <span>
+                    RISK REDUCED
+                </span>
+
+                <strong>
+                    ${reduced}
+                </strong>
+
+            </div>
+
+
+            <div
+                class="comparison-result increased"
+            >
+
+                <span>
+                    RISK INCREASED
+                </span>
+
+                <strong>
+                    ${increased}
+                </strong>
+
+            </div>
+
+
+            <div
+                class="comparison-result unchanged"
+            >
+
+                <span>
+                    NO MATERIAL CHANGE
+                </span>
+
+                <strong>
+                    ${unchanged}
+                </strong>
+
+            </div>
+
+
+            <div
+                class="comparison-result improvement"
+            >
+
+                <span>
+                    NET RISK IMPACT
+                </span>
+
+                <strong>
+                    ${net >= 0 ? "+" : ""}
+                    ${net}
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <div
+            class="comparison-extra"
+        >
+
+            <span>
+                RISKS RESOLVED
+            </span>
+
+            <strong>
+                ${resolved}
+            </strong>
+
+
+            <span>
+                NEW RISKS
+            </span>
+
+            <strong>
+                ${newRisks}
+            </strong>
+
+
+            <span>
+                REGRESSION
+            </span>
+
+            <strong
+                class="${regression ? "bad" : "good"}"
+            >
+                ${regression ? "YES" : "NO"}
+            </strong>
 
         </div>
 
@@ -1428,33 +2396,31 @@ function renderComparison(
    ANALYZE CURRENT CONTRACT
 ========================================================= */
 
-async function analyzeContract() {
+async function analyzeCurrentContract(
+    contractId = getActiveContractId()
+) {
 
-    const contractId =
-        getActiveContractId();
+    contractId =
+        Number(contractId);
 
 
-    const button =
-        document.querySelector(
-            ".primary-button"
+    if (
+        !contractId
+    ) {
+
+        showToast(
+            "Contract ID is required."
         );
 
-
-    const originalText =
-        button
-            ? button.textContent
-            : "";
-
-
-    if (button) {
-
-        button.textContent =
-            "Analyzing...";
-
-        button.disabled =
-            true;
+        return;
 
     }
+
+
+    setSystemStatus(
+        "loading",
+        "Analyzing contract..."
+    );
 
 
     try {
@@ -1468,24 +2434,33 @@ async function analyzeContract() {
             );
 
 
-        if (!response.ok) {
+        const data =
+            await parseResponse(
+                response
+            );
+
+
+        if (
+            !response.ok
+        ) {
 
             throw new Error(
-                `Analysis failed: ${response.status}`
+                extractErrorMessage(
+                    data,
+                    `Analysis failed: ${response.status}`
+                )
             );
 
         }
 
 
-        await response.json();
-
-
         /*
-         * Extract obligations immediately after
-         * analysis.
+         * Extract obligations after
+         * successful analysis.
          */
 
-        const obligationResponse =
+        try {
+
             await fetch(
                 `${API_BASE}/contracts/${contractId}/obligations`,
                 {
@@ -1493,18 +2468,32 @@ async function analyzeContract() {
                 }
             );
 
-
-        if (!obligationResponse.ok) {
+        } catch (
+            obligationError
+        ) {
 
             console.warn(
-                "Obligation extraction returned:",
-                obligationResponse.status
+                "Obligation extraction failed:",
+                obligationError
             );
 
         }
 
 
-        await loadDashboard();
+        localStorage.setItem(
+            "activeContractId",
+            String(contractId)
+        );
+
+
+        await loadDashboard(
+            contractId
+        );
+
+
+        showToast(
+            "Contract analyzed successfully."
+        );
 
 
     } catch (error) {
@@ -1515,35 +2504,17 @@ async function analyzeContract() {
         );
 
 
-        showError(
-            "Contract analysis failed."
+        setSystemStatus(
+            "error",
+            "Analysis failed"
         );
 
 
-    } finally {
-
-        if (button) {
-
-            button.textContent =
-                originalText;
-
-            button.disabled =
-                false;
-
-        }
+        showToast(
+            error.message
+        );
 
     }
-
-}
-
-
-/* =========================================================
-   REFRESH DASHBOARD
-========================================================= */
-
-function refreshDashboard() {
-
-    loadDashboard();
 
 }
 
@@ -1585,6 +2556,18 @@ function showLoadingState() {
 
 
     setText(
+        "ambiguousFindings",
+        "—"
+    );
+
+
+    setText(
+        "missingFindings",
+        "—"
+    );
+
+
+    setText(
         "riskIndicator",
         "..."
     );
@@ -1595,68 +2578,417 @@ function showLoadingState() {
         "—"
     );
 
+
+    setText(
+        "evidenceCoverage",
+        "—"
+    );
+
+
+    setText(
+        "traceabilityCount",
+        "—"
+    );
+
 }
 
 
 /* =========================================================
-   ERROR
+   ERROR STATE
 ========================================================= */
 
-function showError(
+function renderDashboardError(
     message
 ) {
 
-    const container =
+    setText(
+        "contractName",
+        "Unable to load contract"
+    );
+
+
+    setText(
+        "contractMeta",
+        message
+    );
+
+
+    const topRisks =
         document.getElementById(
             "topRisks"
         );
 
 
-    if (!container) {
+    if (
+        topRisks
+    ) {
 
-        console.error(
-            message
-        );
+        topRisks.innerHTML = `
 
-        return;
+            <div
+                class="risk-empty-state"
+            >
+
+                <strong>
+                    Backend connection failed
+                </strong>
+
+
+                <span>
+                    ${escapeHtml(
+                        message
+                    )}
+                </span>
+
+
+                <button
+                    type="button"
+                    class="view-evidence"
+                    onclick="refreshDashboard()"
+                >
+                    Try Again →
+                </button>
+
+            </div>
+
+        `;
 
     }
 
 
-    container.innerHTML = `
-
-        <div class="risk-item">
-
-            <div class="risk-category">
-
-                <span class="risk-dot"></span>
-
-                Connection Error
-
-            </div>
+    const obligations =
+        document.getElementById(
+            "obligations"
+        );
 
 
-            <div class="risk-detail">
+    if (
+        obligations
+    ) {
 
-                ${escapeHtml(
-                    message
-                )}
+        obligations.innerHTML = `
 
-            </div>
-
-
-            <button
-                class="view-evidence"
-                onclick="loadDashboard()"
+            <div
+                class="obligation-empty-state"
             >
 
-                Try Again →
+                <strong>
+                    Contract data unavailable
+                </strong>
 
-            </button>
 
-        </div>
+                <span>
+                    ${escapeHtml(
+                        message
+                    )}
+                </span>
 
-    `;
+            </div>
+
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   SYSTEM STATUS
+========================================================= */
+
+function setSystemStatus(
+    type,
+    message
+) {
+
+    const status =
+        document.getElementById(
+            "systemStatus"
+        );
+
+
+    const statusText =
+        document.getElementById(
+            "systemStatusText"
+        );
+
+
+    const statusTitle =
+        document.getElementById(
+            "systemStatusTitle"
+        );
+
+
+    const statusContainer =
+        status?.closest(
+            ".system-status"
+        );
+
+
+    if (
+        statusContainer
+    ) {
+
+        statusContainer.classList.remove(
+            "online",
+            "loading",
+            "error"
+        );
+
+
+        statusContainer.classList.add(
+            type
+        );
+
+    }
+
+
+    if (
+        status
+    ) {
+
+        if (
+            type === "online"
+        ) {
+
+            status.textContent =
+                "System Online";
+
+        } else if (
+            type === "loading"
+        ) {
+
+            status.textContent =
+                "Processing";
+
+        } else {
+
+            status.textContent =
+                "System Error";
+
+        }
+
+    }
+
+
+    if (
+        statusTitle
+    ) {
+
+        if (
+            type === "online"
+        ) {
+
+            statusTitle.textContent =
+                "System Online";
+
+        } else if (
+            type === "loading"
+        ) {
+
+            statusTitle.textContent =
+                "Processing";
+
+        } else {
+
+            statusTitle.textContent =
+                "System Error";
+
+        }
+
+    }
+
+
+    if (
+        statusText
+    ) {
+
+        statusText.textContent =
+            message;
+
+    }
+
+}
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+function showToast(
+    message
+) {
+
+    let toast =
+        document.getElementById(
+            "appToast"
+        );
+
+
+    if (
+        !toast
+    ) {
+
+        toast =
+            document.createElement(
+                "div"
+            );
+
+
+        toast.id =
+            "appToast";
+
+
+        toast.className =
+            "app-toast";
+
+
+        document.body.appendChild(
+            toast
+        );
+
+    }
+
+
+    toast.textContent =
+        message;
+
+
+    toast.classList.add(
+        "visible"
+    );
+
+
+    clearTimeout(
+        toast._timer
+    );
+
+
+    toast._timer =
+        setTimeout(
+            () => {
+
+                toast.classList.remove(
+                    "visible"
+                );
+
+            },
+            3000
+        );
+
+}
+
+
+/* =========================================================
+   RESPONSE PARSER
+========================================================= */
+
+async function parseResponse(
+    response
+) {
+
+    const contentType =
+        response.headers.get(
+            "content-type"
+        ) || "";
+
+
+    if (
+        contentType.includes(
+            "application/json"
+        )
+    ) {
+
+        return await response.json();
+
+    }
+
+
+    const text =
+        await response.text();
+
+
+    return {
+        message: text
+    };
+
+}
+
+
+/* =========================================================
+   ERROR EXTRACTION
+========================================================= */
+
+function extractErrorMessage(
+    data,
+    fallback
+) {
+
+    if (
+        !data
+    ) {
+
+        return fallback;
+
+    }
+
+
+    if (
+        typeof data === "string"
+    ) {
+
+        return data ||
+            fallback;
+
+    }
+
+
+    if (
+        typeof data.detail === "string"
+    ) {
+
+        return data.detail;
+
+    }
+
+
+    if (
+        Array.isArray(
+            data.detail
+        )
+    ) {
+
+        return data.detail
+            .map(
+                item =>
+                    item.msg ||
+                    item.message ||
+                    String(item)
+            )
+            .join(", ");
+
+    }
+
+
+    if (
+        typeof data.message === "string"
+    ) {
+
+        return data.message;
+
+    }
+
+
+    if (
+        typeof data.error === "string"
+    ) {
+
+        return data.error;
+
+    }
+
+
+    return fallback;
 
 }
 
@@ -1676,10 +3008,13 @@ function setText(
         );
 
 
-    if (element) {
+    if (
+        element
+    ) {
 
         element.textContent =
-            value;
+            value ??
+            "—";
 
     }
 
@@ -1705,30 +3040,62 @@ function escapeHtml(
 
 
     return String(value)
-
-        .replaceAll(
-            "&",
+        .replace(
+            /&/g,
             "&amp;"
         )
-
-        .replaceAll(
-            "<",
+        .replace(
+            /</g,
             "&lt;"
         )
-
-        .replaceAll(
-            ">",
+        .replace(
+            />/g,
             "&gt;"
         )
-
-        .replaceAll(
-            '"',
+        .replace(
+            /"/g,
             "&quot;"
         )
-
-        .replaceAll(
-            "'",
+        .replace(
+            /'/g,
             "&#039;"
         );
 
 }
+
+
+/* =========================================================
+   GLOBAL FUNCTIONS
+========================================================= */
+
+window.loadDashboard =
+    loadDashboard;
+
+
+window.refreshDashboard =
+    refreshDashboard;
+
+
+window.openFindingTrace =
+    openFindingTrace;
+
+
+window.analyzeCurrentContract =
+    analyzeCurrentContract;
+
+
+/*
+ * Backward compatibility with
+ * existing HTML buttons.
+ */
+
+window.loadContract =
+    loadDashboard;
+
+
+window.renderObligations =
+    renderObligations;
+
+
+window.getActiveContractId =
+    getActiveContractId;

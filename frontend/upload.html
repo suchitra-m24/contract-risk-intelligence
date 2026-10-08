@@ -22,13 +22,18 @@
 <aside class="sidebar">
 
     <div class="brand">
-        <div class="brand-icon">C</div>
+
+        <div class="brand-icon">
+            C
+        </div>
 
         <div>
             <h1>ClauseGuard</h1>
             <span>Contract Intelligence</span>
         </div>
+
     </div>
+
 
     <nav class="navigation">
 
@@ -41,6 +46,7 @@
             Upload Contract
         </a>
 
+
         <a
             class="nav-item"
             href="index.html"
@@ -50,38 +56,69 @@
             Dashboard
         </a>
 
-        <button class="nav-item">
+
+        <a
+            class="nav-item"
+            href="index.html#risk-analysis"
+            style="text-decoration:none;"
+        >
             <span>⚠</span>
             Risk Analysis
-        </button>
+        </a>
 
-        <button class="nav-item">
+
+        <a
+            class="nav-item"
+            href="index.html#obligations"
+            style="text-decoration:none;"
+        >
             <span>✓</span>
             Obligations
-        </button>
+        </a>
 
-        <button class="nav-item">
+
+        <a
+            class="nav-item"
+            href="comparison.html"
+            style="text-decoration:none;"
+        >
             <span>⇄</span>
             Version Comparison
-        </button>
+        </a>
 
     </nav>
 
+
     <div class="sidebar-bottom">
 
-        <div class="system-status">
+        <div
+            class="system-status"
+            id="systemStatus"
+        >
+
             <span class="status-dot"></span>
 
             <div>
-                <strong>System Online</strong>
-                <small>Backend connected</small>
+
+                <strong id="systemStatusTitle">
+                    Checking System
+                </strong>
+
+                <small id="systemStatusText">
+                    Connecting to backend...
+                </small>
+
             </div>
+
         </div>
 
+
         <div class="disclaimer">
+
             Internal contract analysis only.
             <br>
             Not legal advice.
+
         </div>
 
     </div>
@@ -112,6 +149,8 @@
 
     </header>
 
+
+    <!-- UPLOAD CARD -->
 
     <section class="card upload-card">
 
@@ -145,6 +184,8 @@
             class="upload-form"
         >
 
+            <!-- CONTRACT NAME -->
+
             <label
                 for="contractName"
                 class="form-label"
@@ -157,9 +198,13 @@
                 name="contract_name"
                 type="text"
                 placeholder="e.g. Vendor Service Agreement"
+                maxlength="255"
+                autocomplete="off"
                 required
             >
 
+
+            <!-- FILE -->
 
             <label
                 for="contractFile"
@@ -167,6 +212,7 @@
             >
                 Contract File
             </label>
+
 
             <label
                 for="contractFile"
@@ -192,21 +238,27 @@
 
             </label>
 
+
             <input
                 id="contractFile"
                 name="file"
                 type="file"
-                accept=".pdf,.docx"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 hidden
                 required
             >
 
 
+            <!-- STATUS -->
+
             <div
                 id="uploadStatus"
                 class="upload-status"
+                aria-live="polite"
             ></div>
 
+
+            <!-- BUTTON -->
 
             <button
                 type="submit"
@@ -221,13 +273,19 @@
     </section>
 
 
+    <!-- FLOW -->
+
     <section class="upload-flow">
 
-        <div class="flow-step active">
+        <div
+            class="flow-step active"
+            id="flowUpload"
+        >
 
             <span>1</span>
 
             <div>
+
                 <strong>
                     Upload
                 </strong>
@@ -235,6 +293,7 @@
                 <small>
                     Submit contract
                 </small>
+
             </div>
 
         </div>
@@ -243,11 +302,15 @@
         <div class="flow-line"></div>
 
 
-        <div class="flow-step">
+        <div
+            class="flow-step"
+            id="flowExtract"
+        >
 
             <span>2</span>
 
             <div>
+
                 <strong>
                     Extract
                 </strong>
@@ -255,6 +318,7 @@
                 <small>
                     Identify clauses
                 </small>
+
             </div>
 
         </div>
@@ -263,11 +327,15 @@
         <div class="flow-line"></div>
 
 
-        <div class="flow-step">
+        <div
+            class="flow-step"
+            id="flowAnalyze"
+        >
 
             <span>3</span>
 
             <div>
+
                 <strong>
                     Analyze
                 </strong>
@@ -275,6 +343,7 @@
                 <small>
                     Apply playbook
                 </small>
+
             </div>
 
         </div>
@@ -283,11 +352,15 @@
         <div class="flow-line"></div>
 
 
-        <div class="flow-step">
+        <div
+            class="flow-step"
+            id="flowIntelligence"
+        >
 
             <span>4</span>
 
             <div>
+
                 <strong>
                     Intelligence
                 </strong>
@@ -295,12 +368,15 @@
                 <small>
                     View evidence & risks
                 </small>
+
             </div>
 
         </div>
 
     </section>
 
+
+    <!-- DEMO CARD -->
 
     <section class="card demo-card">
 
@@ -312,26 +388,42 @@
             From contract to explainable risk
         </h3>
 
+
         <div class="demo-points">
 
             <div>
+
                 <span>01</span>
+
                 Exact clauses are extracted from the document.
+
             </div>
 
+
             <div>
+
                 <span>02</span>
+
                 Clauses are evaluated against the defined playbook.
+
             </div>
 
+
             <div>
+
                 <span>03</span>
+
                 Every risk is linked back to contract evidence.
+
             </div>
 
+
             <div>
+
                 <span>04</span>
+
                 Obligations and version-level risk changes are surfaced.
+
             </div>
 
         </div>
@@ -356,32 +448,121 @@
 
 <script>
 
-const API_BASE =
-    "http://127.0.0.1:8000";
+const API_BASE = "http://127.0.0.1:8000";
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+const ALLOWED_EXTENSIONS = [
+    ".pdf",
+    ".docx"
+];
 
 
 const form =
     document.getElementById("uploadForm");
 
-
 const fileInput =
     document.getElementById("contractFile");
-
 
 const fileName =
     document.getElementById("fileName");
 
-
 const uploadStatus =
     document.getElementById("uploadStatus");
-
 
 const uploadButton =
     document.getElementById("uploadButton");
 
-
 const fileDrop =
     document.getElementById("fileDrop");
+
+const systemStatus =
+    document.getElementById("systemStatus");
+
+const systemStatusTitle =
+    document.getElementById("systemStatusTitle");
+
+const systemStatusText =
+    document.getElementById("systemStatusText");
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    async () => {
+
+        await checkBackend();
+
+    }
+);
+
+
+/* =========================================================
+   BACKEND HEALTH
+========================================================= */
+
+async function checkBackend() {
+
+    setSystemStatus(
+        "loading",
+        "Checking System",
+        "Connecting to backend..."
+    );
+
+
+    try {
+
+        /*
+         * FastAPI normally exposes /docs.
+         * We only need to know whether the
+         * server is reachable.
+         */
+
+        const response =
+            await fetch(
+                `${API_BASE}/docs`,
+                {
+                    method: "GET"
+                }
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Backend returned ${response.status}`
+            );
+
+        }
+
+
+        setSystemStatus(
+            "online",
+            "System Online",
+            "Backend connected"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Backend health check failed:",
+            error
+        );
+
+
+        setSystemStatus(
+            "error",
+            "System Offline",
+            "Start FastAPI on port 8000"
+        );
+
+    }
+
+}
 
 
 /* =========================================================
@@ -392,25 +573,127 @@ fileInput.addEventListener(
     "change",
     () => {
 
-        if (!fileInput.files.length) {
+        handleSelectedFile();
 
-            fileName.textContent =
-                "No file selected";
-
-            return;
-        }
-
-        const file =
-            fileInput.files[0];
-
-        fileName.textContent =
-            `${file.name} • ${formatFileSize(file.size)}`;
-
-        fileDrop.classList.add(
-            "selected"
-        );
     }
 );
+
+
+function handleSelectedFile() {
+
+    if (!fileInput.files.length) {
+
+        resetFileSelection();
+
+        return;
+
+    }
+
+
+    const file =
+        fileInput.files[0];
+
+
+    const validation =
+        validateFile(file);
+
+
+    if (!validation.valid) {
+
+        fileName.textContent =
+            validation.message;
+
+        fileDrop.classList.remove(
+            "selected"
+        );
+
+        showStatus(
+            validation.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    fileName.textContent =
+        `${file.name} • ${formatFileSize(file.size)}`;
+
+
+    fileDrop.classList.add(
+        "selected"
+    );
+
+
+    clearStatus();
+
+}
+
+
+/* =========================================================
+   FILE VALIDATION
+========================================================= */
+
+function validateFile(file) {
+
+    if (!file) {
+
+        return {
+            valid: false,
+            message: "Please select a contract file."
+        };
+
+    }
+
+
+    const lowerName =
+        file.name.toLowerCase();
+
+
+    const validExtension =
+        ALLOWED_EXTENSIONS.some(
+            extension =>
+                lowerName.endsWith(extension)
+        );
+
+
+    if (!validExtension) {
+
+        return {
+            valid: false,
+            message: "Only PDF and DOCX files are supported."
+        };
+
+    }
+
+
+    if (file.size === 0) {
+
+        return {
+            valid: false,
+            message: "The selected file is empty."
+        };
+
+    }
+
+
+    if (file.size > MAX_FILE_SIZE) {
+
+        return {
+            valid: false,
+            message: "File is too large. Maximum size is 25 MB."
+        };
+
+    }
+
+
+    return {
+        valid: true,
+        message: ""
+    };
+
+}
 
 
 /* =========================================================
@@ -426,6 +709,7 @@ fileDrop.addEventListener(
         fileDrop.classList.add(
             "dragging"
         );
+
     }
 );
 
@@ -437,6 +721,7 @@ fileDrop.addEventListener(
         fileDrop.classList.remove(
             "dragging"
         );
+
     }
 );
 
@@ -451,24 +736,40 @@ fileDrop.addEventListener(
             "dragging"
         );
 
+
         if (
+            event.dataTransfer &&
             event.dataTransfer.files &&
             event.dataTransfer.files.length
         ) {
 
-            fileInput.files =
-                event.dataTransfer.files;
+            try {
 
-            fileInput.dispatchEvent(
-                new Event("change")
-            );
+                fileInput.files =
+                    event.dataTransfer.files;
+
+            } catch (error) {
+
+                console.warn(
+                    "Could not assign dropped files:",
+                    error
+                );
+
+                return;
+
+            }
+
+
+            handleSelectedFile();
+
         }
+
     }
 );
 
 
 /* =========================================================
-   UPLOAD
+   FORM SUBMIT
 ========================================================= */
 
 form.addEventListener(
@@ -478,12 +779,23 @@ form.addEventListener(
         event.preventDefault();
 
 
+        if (
+            uploadButton.disabled
+        ) {
+
+            return;
+
+        }
+
+
         const contractName =
             document
                 .getElementById("contractName")
                 .value
                 .trim();
 
+
+        /* NAME VALIDATION */
 
         if (!contractName) {
 
@@ -493,8 +805,23 @@ form.addEventListener(
             );
 
             return;
+
         }
 
+
+        if (contractName.length < 2) {
+
+            showStatus(
+                "Contract name is too short.",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        /* FILE VALIDATION */
 
         if (!fileInput.files.length) {
 
@@ -504,6 +831,7 @@ form.addEventListener(
             );
 
             return;
+
         }
 
 
@@ -511,60 +839,29 @@ form.addEventListener(
             fileInput.files[0];
 
 
-        const allowedTypes = [
-            "application/pdf",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        ];
+        const validation =
+            validateFile(file);
 
 
-        const validExtension =
-            file.name
-                .toLowerCase()
-                .endsWith(".pdf") ||
-            file.name
-                .toLowerCase()
-                .endsWith(".docx");
-
-
-        if (!validExtension) {
+        if (!validation.valid) {
 
             showStatus(
-                "Only PDF and DOCX files are supported.",
+                validation.message,
                 "error"
             );
 
             return;
+
         }
 
 
-        const formData =
-            new FormData();
-
-
-        /*
-         * The backend upload endpoint expects
-         * the contract file as multipart form data.
-         */
-
-        formData.append(
-            "file",
-            file
-        );
-
-
-        /*
-         * Contract name is included as form data.
-         * If the backend does not require it,
-         * the extra field is harmless.
-         */
-
-        formData.append(
-            "contract_name",
-            contractName
-        );
-
+        /* START */
 
         setUploading(true);
+
+        setFlowStep(
+            "upload"
+        );
 
 
         showStatus(
@@ -573,7 +870,29 @@ form.addEventListener(
         );
 
 
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "file",
+            file
+        );
+
+
+        formData.append(
+            "contract_name",
+            contractName
+        );
+
+
         try {
+
+            /*
+             * ------------------------------------------------
+             * STEP 1 — UPLOAD
+             * ------------------------------------------------
+             */
 
             const response =
                 await fetch(
@@ -586,27 +905,27 @@ form.addEventListener(
 
 
             const data =
-                await response.json();
+                await parseResponse(
+                    response
+                );
 
 
             if (!response.ok) {
 
                 throw new Error(
-                    data.detail ||
-                    data.message ||
-                    "Contract upload failed."
+                    extractErrorMessage(
+                        data,
+                        "Contract upload failed."
+                    )
                 );
+
             }
 
 
-            /*
-             * Try to find the newly-created
-             * contract ID regardless of the
-             * exact response nesting.
-             */
-
             const contractId =
-                findContractId(data);
+                findContractId(
+                    data
+                );
 
 
             if (!contractId) {
@@ -616,15 +935,16 @@ form.addEventListener(
                     data
                 );
 
+
                 throw new Error(
-                    "Contract uploaded, but the backend did not return a contract ID."
+                    "Contract uploaded, but no contract ID was returned by the backend."
                 );
+
             }
 
 
             /*
-             * Save the ID so the dashboard
-             * can load this contract.
+             * Persist active contract.
              */
 
             localStorage.setItem(
@@ -633,15 +953,50 @@ form.addEventListener(
             );
 
 
-            showStatus(
-                "Contract uploaded successfully. Starting analysis...",
-                "success"
+            /*
+             * Store basic metadata for
+             * the dashboard if required.
+             */
+
+            localStorage.setItem(
+                "activeContractName",
+                contractName
+            );
+
+
+            localStorage.setItem(
+                "activeContractFile",
+                file.name
             );
 
 
             /*
-             * Analyze immediately.
+             * ------------------------------------------------
+             * STEP 2 — EXTRACT / ANALYZE
+             * ------------------------------------------------
              */
+
+            setFlowStep(
+                "extract"
+            );
+
+
+            showStatus(
+                "Contract uploaded. Extracting clauses...",
+                "loading"
+            );
+
+
+            setFlowStep(
+                "analyze"
+            );
+
+
+            showStatus(
+                "Applying playbook rules and generating risk intelligence...",
+                "loading"
+            );
+
 
             const analyzeResponse =
                 await fetch(
@@ -653,17 +1008,87 @@ form.addEventListener(
 
 
             const analyzeData =
-                await analyzeResponse.json();
+                await parseResponse(
+                    analyzeResponse
+                );
 
 
             if (!analyzeResponse.ok) {
 
                 throw new Error(
-                    analyzeData.detail ||
-                    analyzeData.message ||
-                    "Contract analysis failed."
+                    extractErrorMessage(
+                        analyzeData,
+                        "Contract analysis failed."
+                    )
                 );
+
             }
+
+
+            /*
+             * ------------------------------------------------
+             * STEP 3 — OBLIGATIONS
+             * ------------------------------------------------
+             *
+             * This is intentionally non-blocking.
+             *
+             * Risk analysis is the core MVP.
+             * If obligation extraction fails,
+             * the contract should still reach the
+             * dashboard.
+             */
+
+            showStatus(
+                "Risk analysis complete. Extracting obligations...",
+                "loading"
+            );
+
+
+            try {
+
+                const obligationResponse =
+                    await fetch(
+                        `${API_BASE}/contracts/${contractId}/obligations`,
+                        {
+                            method: "POST"
+                        }
+                    );
+
+
+                if (!obligationResponse.ok) {
+
+                    console.warn(
+                        "Obligation extraction returned:",
+                        obligationResponse.status
+                    );
+
+                } else {
+
+                    await parseResponse(
+                        obligationResponse
+                    );
+
+                }
+
+            } catch (obligationError) {
+
+                console.warn(
+                    "Obligation extraction failed:",
+                    obligationError
+                );
+
+            }
+
+
+            /*
+             * ------------------------------------------------
+             * STEP 4 — DASHBOARD
+             * ------------------------------------------------
+             */
+
+            setFlowStep(
+                "intelligence"
+            );
 
 
             showStatus(
@@ -672,87 +1097,412 @@ form.addEventListener(
             );
 
 
-            setTimeout(
-                () => {
+            /*
+             * Small delay gives the user
+             * visual confirmation.
+             */
 
-                    window.location.href =
-                        "index.html";
-
-                },
+            await sleep(
                 700
             );
+
+
+            /*
+             * Final safety check.
+             */
+
+            const storedId =
+                localStorage.getItem(
+                    "activeContractId"
+                );
+
+
+            if (
+                !storedId ||
+                String(storedId) !== String(contractId)
+            ) {
+
+                localStorage.setItem(
+                    "activeContractId",
+                    String(contractId)
+                );
+
+            }
+
+
+            /*
+             * Open dashboard.
+             */
+
+            window.location.href =
+                "index.html";
 
 
         } catch (error) {
 
             console.error(
-                "Upload error:",
+                "Upload workflow error:",
                 error
+            );
+
+
+            setFlowStep(
+                "upload"
             );
 
 
             showStatus(
                 error.message ||
-                "Something went wrong while uploading the contract.",
+                "Something went wrong while processing the contract.",
                 "error"
             );
 
 
-            setUploading(false);
+            setUploading(
+                false
+            );
+
         }
+
     }
 );
 
 
 /* =========================================================
-   HELPERS
+   RESPONSE PARSER
 ========================================================= */
 
-function findContractId(data) {
+async function parseResponse(
+    response
+) {
 
-    if (!data) {
-        return null;
-    }
-
-
-    if (
-        typeof data.id === "number" ||
-        typeof data.id === "string"
-    ) {
-        return data.id;
-    }
+    const contentType =
+        response.headers.get(
+            "content-type"
+        ) || "";
 
 
     if (
-        data.contract &&
-        (
-            typeof data.contract.id === "number" ||
-            typeof data.contract.id === "string"
+        contentType.includes(
+            "application/json"
         )
     ) {
-        return data.contract.id;
+
+        return await response.json();
+
     }
 
+
+    const text =
+        await response.text();
+
+
+    return {
+        message: text
+    };
+
+}
+
+
+/* =========================================================
+   ERROR EXTRACTION
+========================================================= */
+
+function extractErrorMessage(
+    data,
+    fallback
+) {
+
+    if (!data) {
+
+        return fallback;
+
+    }
+
+
+    if (
+        typeof data === "string"
+    ) {
+
+        return data || fallback;
+
+    }
+
+
+    if (
+        typeof data.detail === "string"
+    ) {
+
+        return data.detail;
+
+    }
+
+
+    if (
+        Array.isArray(data.detail)
+    ) {
+
+        return data.detail
+            .map(
+                item =>
+                    item.msg ||
+                    item.message ||
+                    String(item)
+            )
+            .join(", ");
+
+    }
+
+
+    if (
+        typeof data.message === "string"
+    ) {
+
+        return data.message;
+
+    }
+
+
+    if (
+        typeof data.error === "string"
+    ) {
+
+        return data.error;
+
+    }
+
+
+    return fallback;
+
+}
+
+
+/* =========================================================
+   FIND CONTRACT ID
+========================================================= */
+
+function findContractId(
+    data
+) {
+
+    if (!data) {
+
+        return null;
+
+    }
+
+
+    /*
+     * { id: 123 }
+     */
+
+    if (
+        data.id !== undefined &&
+        data.id !== null
+    ) {
+
+        return data.id;
+
+    }
+
+
+    /*
+     * { contract_id: 123 }
+     */
 
     if (
         data.contract_id !== undefined &&
         data.contract_id !== null
     ) {
+
         return data.contract_id;
+
     }
 
 
+    /*
+     * { contract: { id: 123 } }
+     */
+
     if (
         data.contract &&
-        data.contract.contract_id !== undefined
+        data.contract.id !== undefined &&
+        data.contract.id !== null
     ) {
+
+        return data.contract.id;
+
+    }
+
+
+    /*
+     * { contract: { contract_id: 123 } }
+     */
+
+    if (
+        data.contract &&
+        data.contract.contract_id !== undefined &&
+        data.contract.contract_id !== null
+    ) {
+
         return data.contract.contract_id;
+
+    }
+
+
+    /*
+     * { data: { id: 123 } }
+     */
+
+    if (
+        data.data &&
+        data.data.id !== undefined &&
+        data.data.id !== null
+    ) {
+
+        return data.data.id;
+
+    }
+
+
+    /*
+     * { result: { id: 123 } }
+     */
+
+    if (
+        data.result &&
+        data.result.id !== undefined &&
+        data.result.id !== null
+    ) {
+
+        return data.result.id;
+
     }
 
 
     return null;
+
 }
 
+
+/* =========================================================
+   FLOW STATE
+========================================================= */
+
+function setFlowStep(
+    step
+) {
+
+    const steps = [
+        "flowUpload",
+        "flowExtract",
+        "flowAnalyze",
+        "flowIntelligence"
+    ];
+
+
+    const mapping = {
+        upload: 0,
+        extract: 1,
+        analyze: 2,
+        intelligence: 3
+    };
+
+
+    const activeIndex =
+        mapping[step] ?? 0;
+
+
+    steps.forEach(
+        (id, index) => {
+
+            const element =
+                document.getElementById(
+                    id
+                );
+
+
+            if (!element) {
+
+                return;
+
+            }
+
+
+            element.classList.remove(
+                "active",
+                "completed"
+            );
+
+
+            if (
+                index < activeIndex
+            ) {
+
+                element.classList.add(
+                    "completed"
+                );
+
+            }
+
+
+            if (
+                index === activeIndex
+            ) {
+
+                element.classList.add(
+                    "active"
+                );
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   UPLOADING STATE
+========================================================= */
+
+function setUploading(
+    uploading
+) {
+
+    uploadButton.disabled =
+        uploading;
+
+
+    uploadButton.textContent =
+        uploading
+            ? "Processing..."
+            : "Upload & Analyze →";
+
+
+    fileInput.disabled =
+        uploading;
+
+
+    const nameInput =
+        document.getElementById(
+            "contractName"
+        );
+
+
+    if (nameInput) {
+
+        nameInput.disabled =
+            uploading;
+
+    }
+
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
 
 function showStatus(
     message,
@@ -762,39 +1512,168 @@ function showStatus(
     uploadStatus.textContent =
         message;
 
+
     uploadStatus.className =
         `upload-status ${type}`;
+
 }
 
 
-function setUploading(
-    uploading
+function clearStatus() {
+
+    uploadStatus.textContent =
+        "";
+
+    uploadStatus.className =
+        "upload-status";
+
+}
+
+
+/* =========================================================
+   SYSTEM STATUS
+========================================================= */
+
+function setSystemStatus(
+    type,
+    title,
+    message
 ) {
 
-    uploadButton.disabled =
-        uploading;
+    if (
+        systemStatus
+    ) {
 
-    uploadButton.textContent =
-        uploading
-            ? "Processing..."
-            : "Upload & Analyze →";
+        systemStatus.classList.remove(
+            "online",
+            "loading",
+            "error"
+        );
+
+
+        systemStatus.classList.add(
+            type
+        );
+
+    }
+
+
+    if (
+        systemStatusTitle
+    ) {
+
+        systemStatusTitle.textContent =
+            title;
+
+    }
+
+
+    if (
+        systemStatusText
+    ) {
+
+        systemStatusText.textContent =
+            message;
+
+    }
+
 }
 
+
+/* =========================================================
+   RESET FILE
+========================================================= */
+
+function resetFileSelection() {
+
+    fileName.textContent =
+        "No file selected";
+
+
+    fileDrop.classList.remove(
+        "selected"
+    );
+
+}
+
+
+/* =========================================================
+   FILE SIZE
+========================================================= */
 
 function formatFileSize(
     bytes
 ) {
 
-    if (bytes < 1024) {
+    if (
+        bytes < 1024
+    ) {
+
         return `${bytes} B`;
+
     }
 
-    if (bytes < 1024 * 1024) {
-        return `${(bytes / 1024).toFixed(1)} KB`;
+
+    if (
+        bytes < 1024 * 1024
+    ) {
+
+        return `${(
+            bytes / 1024
+        ).toFixed(1)} KB`;
+
     }
 
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+    return `${(
+        bytes /
+        (1024 * 1024)
+    ).toFixed(1)} MB`;
+
 }
+
+
+/* =========================================================
+   SLEEP
+========================================================= */
+
+function sleep(
+    milliseconds
+) {
+
+    return new Promise(
+        resolve =>
+            setTimeout(
+                resolve,
+                milliseconds
+            )
+    );
+
+}
+
+
+/* =========================================================
+   PREVENT ACCIDENTAL PAGE LEAVE
+========================================================= */
+
+window.addEventListener(
+    "beforeunload",
+    event => {
+
+        if (
+            uploadButton &&
+            uploadButton.disabled
+        ) {
+
+            event.preventDefault();
+
+            event.returnValue =
+                "";
+
+        }
+
+    }
+);
 
 </script>
 
