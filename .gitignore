@@ -26,3 +26,5 @@ uploads/
 # OS
 .DS_Store
 Thumbs.db
+# ChromaDB local vector database
+chroma_db/
