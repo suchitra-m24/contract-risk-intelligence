@@ -78,6 +78,12 @@ def analyze_clause(clause_text: str, rule: dict):
                 "recommended_action": "No action required."
             }
 
+        # No measurable notice period.
+        # This includes phrases such as:
+        # "reasonable notice"
+        # "reasonable written notice"
+        # "prior notice"
+        # "sufficient notice"
         return {
             "status": "AMBIGUOUS",
             "severity": "MEDIUM",
@@ -85,12 +91,14 @@ def analyze_clause(clause_text: str, rule: dict):
             "expected": "At least 30 days",
             "actual": "Notice period not clearly specified",
             "reason": (
-                "Termination is mentioned but the notice period "
-                "is unclear."
+                "Termination is mentioned, but the contract does not "
+                "specify a measurable notice period such as a number "
+                "of days. The wording may therefore be open to "
+                "interpretation."
             ),
             "recommended_action": (
-                "Review the termination clause and specify "
-                "a clear notice period."
+                "Amend the termination clause to specify a clear "
+                "minimum notice period of at least 30 days."
             )
         }
 
@@ -100,12 +108,15 @@ def analyze_clause(clause_text: str, rule: dict):
 
     if category == "Payment":
 
-        if not any(word in text for word in [
-            "payment",
-            "pay",
-            "invoice",
-            "paid"
-        ]):
+        if not any(
+            word in text
+            for word in [
+                "payment",
+                "pay",
+                "invoice",
+                "paid"
+            ]
+        ):
             return None
 
         days_match = re.search(
@@ -146,18 +157,29 @@ def analyze_clause(clause_text: str, rule: dict):
                 "recommended_action": "No action required."
             }
 
+        # No measurable payment period.
+        # This includes phrases such as:
+        # "promptly"
+        # "immediately"
+        # "as soon as possible"
+        # "within a reasonable time"
+        # "upon receipt"
         return {
             "status": "AMBIGUOUS",
             "severity": "MEDIUM",
             "evidence": clause_text,
             "expected": "Payment within 30 days",
-            "actual": "Payment period unclear",
+            "actual": "Payment period not clearly specified",
             "reason": (
-                "Payment is mentioned but the payment period "
-                "is unclear."
+                "Payment is mentioned, but the contract does not "
+                "specify a measurable payment period such as a "
+                "number of days. Terms such as 'promptly', "
+                "'immediately', or 'within a reasonable time' "
+                "may be interpreted inconsistently."
             ),
             "recommended_action": (
-                "Review and specify a clear payment period."
+                "Amend the payment clause to specify a measurable "
+                "payment period of no more than 30 days."
             )
         }
 
@@ -201,8 +223,10 @@ def analyze_clause(clause_text: str, rule: dict):
 
     keywords = keyword_map.get(category, [])
 
-    if keywords and any(keyword in text for keyword in keywords):
-
+    if keywords and any(
+        keyword in text
+        for keyword in keywords
+    ):
         return {
             "status": "STANDARD",
             "severity": "LOW",
@@ -221,6 +245,7 @@ def analyze_clause(clause_text: str, rule: dict):
 def analyze_clauses(clauses):
     """
     Analyze extracted clauses against all playbook rules.
+
     Also detects playbook rules for which no relevant
     contract clause exists.
     """
@@ -229,7 +254,7 @@ def analyze_clauses(clauses):
 
     findings = []
 
-    # Track which rules/categories were found
+    # Track which rules/categories were found.
     matched_categories = set()
 
     # --------------------------------------------------
@@ -247,14 +272,20 @@ def analyze_clauses(clauses):
 
             if result:
 
-                matched_categories.add(rule["category"])
+                matched_categories.add(
+                    rule["category"]
+                )
 
                 finding = {
                     "rule_id": rule["rule_id"],
                     "category": rule["category"],
                     "clause_id": clause.get("id"),
-                    "clause_number": clause.get("clause_number"),
-                    "page_number": clause.get("page_number"),
+                    "clause_number": clause.get(
+                        "clause_number"
+                    ),
+                    "page_number": clause.get(
+                        "page_number"
+                    ),
                     **result
                 }
 
