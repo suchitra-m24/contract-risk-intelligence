@@ -1,0 +1,58 @@
+[
+  {
+    "rule_id": "PAY-001",
+    "category": "PAYMENT",
+    "requirement": "Payment terms must specify a clear payment period of no more than 30 days from invoice date.",
+    "severity": "MEDIUM",
+    "description": "The contract should clearly define when payment is due. Payment periods longer than 30 days increase payment and cash-flow risk."
+  },
+  {
+    "rule_id": "TERM-001",
+    "category": "TERMINATION",
+    "requirement": "Termination for convenience must provide at least 30 days written notice.",
+    "severity": "HIGH",
+    "description": "A reasonable notice period should be provided before termination for convenience."
+  },
+  {
+    "rule_id": "LIAB-001",
+    "category": "LIABILITY",
+    "requirement": "Liability should include a clearly defined limitation or liability cap.",
+    "severity": "HIGH",
+    "description": "The contract should clearly define the extent or maximum amount of liability."
+  },
+  {
+    "rule_id": "INDEM-001",
+    "category": "INDEMNIFICATION",
+    "requirement": "The contract must contain a clearly defined indemnification obligation identifying the responsible party and covered claims.",
+    "severity": "HIGH",
+    "description": "Indemnification responsibilities should be explicitly defined to avoid uncertainty regarding covered losses or claims."
+  },
+  {
+    "rule_id": "CONF-001",
+    "category": "CONFIDENTIALITY",
+    "requirement": "Confidential information must be protected and the confidentiality obligation should survive termination for at least 2 years.",
+    "severity": "MEDIUM",
+    "description": "Confidentiality obligations should continue after the contract ends to protect sensitive information."
+  },
+  {
+    "rule_id": "IP-001",
+    "category": "INTELLECTUAL_PROPERTY",
+    "requirement": "The contract must clearly specify ownership or permitted rights for intellectual property created under the agreement.",
+    "severity": "HIGH",
+    "description": "Intellectual property ownership and usage rights should be explicitly defined."
+  },
+  {
+    "rule_id": "DATA-001",
+    "category": "DATA_PROTECTION",
+    "requirement": "The contract must define data protection responsibilities and require appropriate protection of personal or sensitive data.",
+    "severity": "HIGH",
+    "description": "The contract should establish responsibilities for protecting personal and sensitive data."
+  },
+  {
+    "rule_id": "LAW-001",
+    "category": "GOVERNING_LAW",
+    "requirement": "The contract must specify a governing law and jurisdiction.",
+    "severity": "MEDIUM",
+    "description": "The applicable governing law and jurisdiction should be explicitly stated."
+  }
+]
