@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from app.services.version_service import generate_contract_v2
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -866,6 +867,170 @@ def compare_contract_v2(
 
         "changes": changes
     }
+# ============================================================
+# EVIDENCE → PLAYBOOK TRACEABILITY
+# ============================================================
+
+@router.get("/{contract_id}/findings/{finding_id}/trace")
+def trace_finding(
+    contract_id: int,
+    finding_id: int,
+    db: Session = Depends(get_db)
+):
+
+    # --------------------------------------------------------
+    # Find contract
+    # --------------------------------------------------------
+
+    contract = (
+        db.query(Contract)
+        .filter(Contract.id == contract_id)
+        .first()
+    )
+
+    if not contract:
+        raise HTTPException(
+            status_code=404,
+            detail="Contract not found"
+        )
+
+    # --------------------------------------------------------
+    # Find finding
+    # --------------------------------------------------------
+
+    finding = (
+        db.query(Finding)
+        .filter(
+            Finding.id == finding_id,
+            Finding.contract_id == contract_id
+        )
+        .first()
+    )
+
+    if not finding:
+        raise HTTPException(
+            status_code=404,
+            detail="Finding not found for this contract"
+        )
+
+    # --------------------------------------------------------
+    # Find source clause
+    # --------------------------------------------------------
+
+    clause = None
+
+    if finding.clause_id:
+        clause = (
+            db.query(Clause)
+            .filter(Clause.id == finding.clause_id)
+            .first()
+        )
+
+    # --------------------------------------------------------
+    # Load playbook rules
+    # --------------------------------------------------------
+
+    rules_path = (
+        Path(__file__).resolve()
+        .parents[3]
+        / "playbook"
+        / "rules.json"
+    )
+
+    try:
+        with open(
+            rules_path,
+            "r",
+            encoding="utf-8"
+        ) as file:
+            playbook = json.load(file)
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to load playbook rules: {str(exc)}"
+        )
+
+    # --------------------------------------------------------
+    # Find matching rule
+    # --------------------------------------------------------
+
+    rule = next(
+        (
+            item
+            for item in playbook.get("rules", [])
+            if item.get("rule_id") == finding.rule_id
+        ),
+        None
+    )
+
+    if not rule:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Playbook rule not found: {finding.rule_id}"
+        )
+
+    # --------------------------------------------------------
+    # Return complete evidence chain
+    # --------------------------------------------------------
+
+    return {
+        "message": "Finding trace generated successfully",
+
+        "contract": {
+            "id": contract.id,
+            "name": contract.contract_name,
+            "version": contract.version_number,
+            "file_name": contract.file_name
+        },
+
+        "finding": {
+            "id": finding.id,
+            "rule_id": finding.rule_id,
+            "category": finding.category,
+            "status": finding.status,
+            "severity": finding.severity
+        },
+
+        "contract_evidence": {
+            "clause_id": clause.id if clause else finding.clause_id,
+            "clause_number": (
+                clause.clause_number
+                if clause else None
+            ),
+            "clause_title": (
+                clause.clause_title
+                if clause else None
+            ),
+            "page_number": (
+                clause.page_number
+                if clause else None
+            ),
+            "text": (
+                clause.clause_text
+                if clause
+                else finding.evidence
+            )
+        },
+
+        "playbook_rule": {
+            "rule_id": rule.get("rule_id"),
+            "category": rule.get("category"),
+            "requirement": rule.get("requirement"),
+            "severity": rule.get("severity"),
+            "description": rule.get("description")
+        },
+
+        "assessment": {
+            "actual": finding.actual,
+            "expected": finding.expected,
+            "evidence": finding.evidence,
+            "reason": finding.reason,
+            "recommended_action": finding.recommended_action
+        }
+    }
+
+
 # ============================================================
 # COMPARE RISK BETWEEN V1 AND V2
 # ============================================================
