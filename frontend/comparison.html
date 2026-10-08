@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ClauseGuard AI — Version Comparison</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+    <style>
+
+        .comparison-page {
+            padding-bottom: 60px;
+        }
+
+        .comparison-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .comparison-header h1 {
+            margin-bottom: 8px;
+        }
+
+        .version-selector {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px;
+            margin-bottom: 24px;
+        }
+
+        .version-box {
+            flex: 1;
+        }
+
+        .version-box label {
+            display: block;
+            font-size: 12px;
+            color: #7f8d88;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .version-box select {
+            width: 100%;
+            padding: 13px 14px;
+            border-radius: 10px;
+            border: 1px solid #263630;
+            background: #111917;
+            color: #f4f7f5;
+            font-size: 14px;
+        }
+
+        .vs {
+            font-weight: 700;
+            color: #26d98a;
+            padding-top: 22px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            padding: 22px;
+        }
+
+        .summary-card .label {
+            display: block;
+            color: #7f8d88;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .summary-card .value {
+            font-size: 32px;
+            font-weight: 800;
+        }
+
+        .summary-card.green .value {
+            color: #26d98a;
+        }
+
+        .summary-card.red .value {
+            color: #ff5c70;
+        }
+
+        .summary-card.orange .value {
+            color: #ffb44c;
+        }
+
+        .summary-card.blue .value {
+            color: #6fa8ff;
+        }
+
+        .improvement-banner {
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(38, 217, 138, 0.35);
+            background: rgba(38, 217, 138, 0.06);
+        }
+
+        .improvement-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .improvement-number {
+            font-size: 42px;
+            font-weight: 800;
+            color: #26d98a;
+        }
+
+        .regression {
+            border-color: rgba(255, 92, 112, 0.4);
+            background: rgba(255, 92, 112, 0.06);
+        }
+
+        .regression .improvement-number {
+            color: #ff5c70;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .filter-btn {
+            border: 1px solid #263630;
+            background: #111917;
+            color: #9aa8a3;
+            padding: 9px 15px;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+
+        .filter-btn.active {
+            background: rgba(38, 217, 138, 0.12);
+            border-color: #26d98a;
+            color: #26d98a;
+        }
+
+        .change-card {
+            padding: 24px;
+            margin-bottom: 16px;
+            border: 1px solid #1f2d28;
+        }
+
+        .change-card.reduced {
+            border-left: 4px solid #26d98a;
+        }
+
+        .change-card.increased {
+            border-left: 4px solid #ff5c70;
+        }
+
+        .change-card.same {
+            border-left: 4px solid #6f7d78;
+        }
+
+        .change-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .change-category {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .impact-badge {
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .5px;
+        }
+
+        .impact-badge.reduced {
+            background: rgba(38, 217, 138, 0.12);
+            color: #26d98a;
+        }
+
+        .impact-badge.increased {
+            background: rgba(255, 92, 112, 0.12);
+            color: #ff5c70;
+        }
+
+        .impact-badge.same {
+            background: rgba(127, 141, 136, 0.12);
+            color: #9aa8a3;
+        }
+
+        .diff-grid {
+            display: grid;
+            grid-template-columns: 1fr 50px 1fr;
+            align-items: stretch;
+            gap: 16px;
+        }
+
+        .diff-panel {
+            background: #0d1412;
+            border: 1px solid #202d29;
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .diff-panel h4 {
+            color: #7f8d88;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .diff-panel .status {
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .diff-panel .actual {
+            color: #dce5e1;
+            margin-bottom: 10px;
+        }
+
+        .diff-panel .evidence {
+            color: #7f8d88;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .diff-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 25px;
+            color: #26d98a;
+        }
+
+        .risk-reason {
+            margin-top: 18px;
+            padding: 15px;
+            background: rgba(255, 180, 76, 0.06);
+            border-radius: 10px;
+            color: #aebbb6;
+            line-height: 1.6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8d88;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 40px;
+            color: #ff5c70;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #7f8d88;
+        }
+
+        .comparison-source {
+            margin-top: 8px;
+            color: #7f8d88;
+            font-size: 13px;
+        }
+
+        @media (max-width: 900px) {
+
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .diff-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .diff-arrow {
+                transform: rotate(90deg);
+            }
+
+            .version-selector {
+                flex-direction: column;
+            }
+
+            .vs {
+                padding-top: 0;
+            }
+        }
+
+        @media (max-width: 600px) {
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .comparison-header {
+                flex-direction: column;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="app-shell">
+
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+
+            <div class="brand-icon">
+                C
+            </div>
+
+            <div>
+
+                <div class="brand-name">
+                    ClauseGuard
+                </div>
+
+                <div class="brand-subtitle">
+                    Contract Intelligence
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <nav class="sidebar-nav">
+
+            <a href="index.html">
+
+                ◇
+
+                <span>
+                    Dashboard
+                </span>
+
+            </a>
+
+
+            <a href="upload.html">
+
+                ↑
+
+                <span>
+                    Upload Contract
+                </span>
+
+            </a>
+
+
+            <a href="findings.html">
+
+                △
+
+                <span>
+                    Risk Analysis
+                </span>
+
+            </a>
+
+
+            <a href="index.html">
+
+                ✓
+
+                <span>
+                    Obligations
+                </span>
+
+            </a>
+
+
+            <a
+                href="comparison.html"
+                class="active"
+            >
+
+                ⇄
+
+                <span>
+                    Version Comparison
+                </span>
+
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <div class="system-status">
+
+                <span class="status-dot"></span>
+
+                <div>
+
+                    <strong>
+                        System Online
+                    </strong>
+
+                    <small>
+                        Backend connected
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="sidebar-disclaimer">
+
+                Internal contract analysis only.
+                <br>
+                Not legal advice.
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN -->
+
+    <main class="main-content">
+
+        <div class="comparison-page">
+
+
+            <!-- HEADER -->
+
+            <div class="comparison-header">
+
+                <div>
+
+                    <div class="eyebrow">
+                        CHANGE INTELLIGENCE
+                    </div>
+
+                    <h1>
+                        V1 → V2 Risk Improvement
+                    </h1>
+
+                    <p class="subtitle">
+                        See whether contract changes actually reduced risk.
+                    </p>
+
+                    <div
+                        id="comparisonSource"
+                        class="comparison-source"
+                    >
+                        Loading comparison...
+                    </div>
+
+                </div>
+
+
+                <button
+                    class="primary-btn"
+                    onclick="loadComparison()"
+                >
+
+                    ↻ Refresh Comparison
+
+                </button>
+
+            </div>
+
+
+            <!-- VERSION SELECTOR -->
+
+            <div class="card version-selector">
+
+                <div class="version-box">
+
+                    <label>
+                        Original Contract
+                    </label>
+
+                    <select id="v1Select">
+
+                        <option>
+                            Loading...
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="vs">
+                    VS
+                </div>
+
+
+                <div class="version-box">
+
+                    <label>
+                        Improved Contract
+                    </label>
+
+                    <select id="v2Select">
+
+                        <option>
+                            Loading...
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <!-- LOADING -->
+
+            <div
+                id="loadingState"
+                class="card loading"
+            >
+
+                Loading version comparison...
+
+            </div>
+
+
+            <!-- MAIN CONTENT -->
+
+            <div
+                id="comparisonContent"
+                style="display:none;"
+            >
+
+
+                <!-- SUMMARY -->
+
+                <div class="summary-grid">
+
+
+                    <div class="card summary-card blue">
+
+                        <span class="label">
+                            Changes Detected
+                        </span>
+
+                        <div
+                            class="value"
+                            id="changesDetected"
+                        >
+                            0
+                        </div>
+
+                    </div>
+
+
+                    <div class="card summary-card red">
+
+                        <span class="label">
+                            Risk Increased
+                        </span>
+
+                        <div
+                            class="value"
+                            id="riskIncreased"
+                        >
+                            0
+                        </div>
+
+                    </div>
+
+
+                    <div class="card summary-card green">
+
+                        <span class="label">
+                            Risk Reduced
+                        </span>
+
+                        <div
+                            class="value"
+                            id="riskReduced"
+                        >
+                            0
+                        </div>
+
+                    </div>
+
+
+                    <div class="card summary-card">
+
+                        <span class="label">
+                            No Material Change
+                        </span>
+
+                        <div
+                            class="value"
+                            id="unchanged"
+                        >
+                            0
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- RISK IMPROVEMENT -->
+
+                <div
+                    id="improvementBanner"
+                    class="card improvement-banner"
+                >
+
+                    <div class="improvement-content">
+
+                        <div>
+
+                            <div class="eyebrow">
+                                NET RISK IMPROVEMENT
+                            </div>
+
+                            <h2 id="improvementTitle">
+                                Risk improved
+                            </h2>
+
+                            <p
+                                id="improvementDescription"
+                                class="subtitle"
+                            >
+                                Comparing contract versions...
+                            </p>
+
+                        </div>
+
+
+                        <div
+                            id="improvementNumber"
+                            class="improvement-number"
+                        >
+                            +0
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- FILTERS -->
+
+                <div class="card">
+
+                    <div class="section-label">
+                        FILTER CHANGES
+                    </div>
+
+                    <div class="filter-row">
+
+
+                        <button
+                            class="filter-btn active"
+                            data-filter="ALL"
+                            onclick="setFilter('ALL')"
+                        >
+                            All Changes
+                        </button>
+
+
+                        <button
+                            class="filter-btn"
+                            data-filter="RISK REDUCED"
+                            onclick="setFilter('RISK REDUCED')"
+                        >
+                            Risk Reduced
+                        </button>
+
+
+                        <button
+                            class="filter-btn"
+                            data-filter="RISK INCREASED"
+                            onclick="setFilter('RISK INCREASED')"
+                        >
+                            Risk Increased
+                        </button>
+
+
+                        <button
+                            class="filter-btn"
+                            data-filter="NO CHANGE"
+                            onclick="setFilter('NO CHANGE')"
+                        >
+                            No Change
+                        </button>
+
+
+                    </div>
+
+                </div>
+
+
+                <!-- CHANGE LIST -->
+
+                <div id="changeList"></div>
+
+
+            </div>
+
+
+            <!-- ERROR -->
+
+            <div
+                id="errorState"
+                class="card error-state"
+                style="display:none;"
+            ></div>
+
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<script>
+
+
+const API_BASE =
+    "http://127.0.0.1:8000";
+
+
+/*
+ * =========================================================
+ * DEMO COMPARISON
+ * =========================================================
+ *
+ * Canonical working pair:
+ *
+ * Contract 4 = V1
+ * Contract 5 = V2
+ *
+ * V1:
+ *   Payment      = 60 days
+ *   Termination  = 7 days
+ *
+ * V2:
+ *   Payment      = 30 days
+ *   Termination  = 30 days
+ *
+ * This gives:
+ *
+ *   2 risks reduced
+ *   0 risks increased
+ *   6 unchanged
+ *
+ * =========================================================
+ */
+
+
+const DEMO_V1_ID = 4;
+
+const DEMO_V2_ID = 5;
+
+
+let comparisonData = null;
+
+let currentFilter = "ALL";
+
+
+/* =========================================================
+   GET ACTIVE CONTRACT
+   ========================================================= */
+
+function getActiveContractId() {
+
+    /*
+     * IMPORTANT:
+     *
+     * Do NOT use localStorage here.
+     *
+     * The previous implementation could contain
+     * Contract 7 or another contract which does not
+     * have a generated V2.
+     *
+     * For the current hackathon demo we intentionally
+     * use the verified V1/V2 pair.
+     */
+
+    return DEMO_V1_ID;
+
+}
+
+
+/* =========================================================
+   LOAD COMPARISON
+   ========================================================= */
+
+async function loadComparison() {
+
+    const loading =
+        document.getElementById(
+            "loadingState"
+        );
+
+    const content =
+        document.getElementById(
+            "comparisonContent"
+        );
+
+    const error =
+        document.getElementById(
+            "errorState"
+        );
+
+    const source =
+        document.getElementById(
+            "comparisonSource"
+        );
+
+
+    loading.style.display =
+        "block";
+
+    content.style.display =
+        "none";
+
+    error.style.display =
+        "none";
+
+
+    const contractId =
+        getActiveContractId();
+
+
+    source.textContent =
+        `Comparing Contract ${DEMO_V1_ID} (V1) → Contract ${DEMO_V2_ID} (V2)`;
+
+
+    try {
+
+
+        const response =
+            await fetch(
+                `${API_BASE}/contracts/${contractId}/risk-comparison`
+            );
+
+
+        if (!response.ok) {
+
+
+            let errorData = null;
+
+
+            try {
+
+                errorData =
+                    await response.json();
+
+            } catch (jsonError) {
+
+                errorData = null;
+
+            }
+
+
+            throw new Error(
+
+                errorData?.detail ||
+
+                `Unable to load comparison (${response.status})`
+
+            );
+
+        }
+
+
+        comparisonData =
+            await response.json();
+
+
+        /*
+         * Validate response before rendering.
+         */
+
+        if (
+            !comparisonData ||
+            !comparisonData.risk_summary ||
+            !comparisonData.versions
+        ) {
+
+            throw new Error(
+                "Invalid comparison response from backend."
+            );
+
+        }
+
+
+        renderComparison();
+
+
+        loading.style.display =
+            "none";
+
+        content.style.display =
+            "block";
+
+
+    } catch (err) {
+
+
+        console.error(
+            "Comparison error:",
+            err
+        );
+
+
+        loading.style.display =
+            "none";
+
+        content.style.display =
+            "none";
+
+        error.style.display =
+            "block";
+
+
+        error.innerHTML = `
+
+            <h3>
+                Unable to load version comparison
+            </h3>
+
+            <p>
+                ${escapeHtml(err.message)}
+            </p>
+
+            <p
+                style="
+                    margin-top:12px;
+                    color:#7f8d88;
+                "
+            >
+                Make sure the FastAPI backend is running
+                and Contract 4 → Contract 5 comparison
+                is available.
+            </p>
+
+            <button
+                class="primary-btn"
+                style="margin-top:20px;"
+                onclick="loadComparison()"
+            >
+                Try Again
+            </button>
+
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER EVERYTHING
+   ========================================================= */
+
+function renderComparison() {
+
+
+    const summary =
+        comparisonData.risk_summary;
+
+
+    const versions =
+        comparisonData.versions;
+
+
+    const changes =
+        comparisonData.risk_changes || [];
+
+
+    /*
+     * Changes detected means every rule where
+     * V1 and V2 have a different risk state.
+     */
+
+    const actualChanges =
+        changes.filter(
+            item =>
+                item.risk_impact !==
+                "NO CHANGE"
+        );
+
+
+    document.getElementById(
+        "changesDetected"
+    ).textContent =
+        actualChanges.length;
+
+
+    document.getElementById(
+        "riskIncreased"
+    ).textContent =
+        (
+            Number(
+                summary.risks_increased || 0
+            )
+            +
+            Number(
+                summary.new_risks || 0
+            )
+        );
+
+
+    document.getElementById(
+        "riskReduced"
+    ).textContent =
+        (
+            Number(
+                summary.risks_reduced || 0
+            )
+            +
+            Number(
+                summary.risks_resolved || 0
+            )
+        );
+
+
+    document.getElementById(
+        "unchanged"
+    ).textContent =
+        Number(
+            summary.unchanged || 0
+        );
+
+
+    /*
+     * Version selectors
+     */
+
+    document.getElementById(
+        "v1Select"
+    ).innerHTML = `
+
+        <option
+            value="${versions.v1.id}"
+        >
+            Contract V1 — ID ${versions.v1.id}
+        </option>
+
+    `;
+
+
+    document.getElementById(
+        "v2Select"
+    ).innerHTML = `
+
+        <option
+            value="${versions.v2.id}"
+        >
+            Contract V2 — ID ${versions.v2.id}
+        </option>
+
+    `;
+
+
+    /*
+     * Improvement banner
+     */
+
+    const improvement =
+        Number(
+            summary.net_risk_improvement || 0
+        );
+
+
+    const banner =
+        document.getElementById(
+            "improvementBanner"
+        );
+
+
+    const number =
+        document.getElementById(
+            "improvementNumber"
+        );
+
+
+    const title =
+        document.getElementById(
+            "improvementTitle"
+        );
+
+
+    const description =
+        document.getElementById(
+            "improvementDescription"
+        );
+
+
+    if (
+        summary.risk_regression
+    ) {
+
+
+        banner.classList.add(
+            "regression"
+        );
+
+
+        number.textContent =
+            improvement > 0
+                ? `+${improvement}`
+                : improvement;
+
+
+        title.textContent =
+            "Risk regression detected";
+
+
+        description.textContent =
+            "The new contract introduces or increases risk. Review the highlighted changes.";
+
+
+    }
+
+    else if (
+        improvement > 0
+    ) {
+
+
+        banner.classList.remove(
+            "regression"
+        );
+
+
+        number.textContent =
+            `+${improvement}`;
+
+
+        title.textContent =
+            "Risk successfully reduced";
+
+
+        description.textContent =
+
+            `${summary.risks_reduced || 0} risk finding(s) reduced and ${summary.risks_resolved || 0} resolved with no new risks introduced.`;
+
+
+    }
+
+    else {
+
+
+        banner.classList.remove(
+            "regression"
+        );
+
+
+        number.textContent =
+            "0";
+
+
+        title.textContent =
+            "No net risk improvement";
+
+
+        description.textContent =
+            "The comparison did not identify a net reduction in risk.";
+
+    }
+
+
+    renderChanges();
+
+}
+
+
+/* =========================================================
+   FILTER
+   ========================================================= */
+
+function setFilter(filter) {
+
+
+    currentFilter =
+        filter;
+
+
+    document
+        .querySelectorAll(
+            ".filter-btn"
+        )
+        .forEach(
+            button => {
+
+                button.classList.toggle(
+                    "active",
+                    button.dataset.filter === filter
+                );
+
+            }
+        );
+
+
+    renderChanges();
+
+}
+
+
+/* =========================================================
+   RENDER CHANGES
+   ========================================================= */
+
+function renderChanges() {
+
+
+    const container =
+        document.getElementById(
+            "changeList"
+        );
+
+
+    if (!comparisonData) {
+
+        return;
+
+    }
+
+
+    let changes =
+        comparisonData.risk_changes || [];
+
+
+    if (
+        currentFilter !==
+        "ALL"
+    ) {
+
+
+        changes =
+            changes.filter(
+                item =>
+                    item.risk_impact ===
+                    currentFilter
+            );
+
+    }
+
+
+    if (!changes.length) {
+
+
+        container.innerHTML = `
+
+            <div class="card empty-state">
+
+                No changes found for this filter.
+
+            </div>
+
+        `;
+
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+
+        changes
+            .map(
+                renderChangeCard
+            )
+            .join("");
+
+}
+
+
+/* =========================================================
+   CHANGE CARD
+   ========================================================= */
+
+function renderChangeCard(item) {
+
+
+    const impact =
+        item.risk_impact;
+
+
+    let className =
+        "same";
+
+
+    if (
+        impact ===
+        "RISK REDUCED"
+    ) {
+
+        className =
+            "reduced";
+
+    }
+
+
+    if (
+        impact ===
+        "RISK INCREASED"
+        ||
+        impact ===
+        "NEW FINDING"
+    ) {
+
+        className =
+            "increased";
+
+    }
+
+
+    const v1 =
+        item.v1;
+
+
+    const v2 =
+        item.v2;
+
+
+    return `
+
+        <div
+            class="
+                card
+                change-card
+                ${className}
+            "
+        >
+
+
+            <div class="change-header">
+
+
+                <div>
+
+
+                    <div
+                        class="section-label"
+                    >
+                        ${escapeHtml(
+                            item.rule_id
+                        )}
+                    </div>
+
+
+                    <div
+                        class="change-category"
+                    >
+                        ${escapeHtml(
+                            item.category
+                        )}
+                    </div>
+
+
+                </div>
+
+
+                <span
+                    class="
+                        impact-badge
+                        ${className}
+                    "
+                >
+                    ${escapeHtml(
+                        impact
+                    )}
+                </span>
+
+
+            </div>
+
+
+            <div class="diff-grid">
+
+
+                <!-- VERSION 1 -->
+
+                <div class="diff-panel">
+
+
+                    <h4>
+                        Version 1
+                    </h4>
+
+
+                    ${
+                        v1
+
+                        ?
+
+                        `
+
+                            <div
+                                class="status"
+                            >
+                                ${escapeHtml(
+                                    v1.status
+                                )}
+                            </div>
+
+
+                            <div
+                                class="actual"
+                            >
+                                ${escapeHtml(
+                                    v1.actual ||
+                                    "No actual value"
+                                )}
+                            </div>
+
+
+                            <div
+                                class="evidence"
+                            >
+                                ${escapeHtml(
+                                    v1.evidence ||
+                                    "No evidence available."
+                                )}
+                            </div>
+
+                        `
+
+                        :
+
+                        `
+
+                            <div
+                                class="status"
+                            >
+                                NOT PRESENT
+                            </div>
+
+
+                            <div
+                                class="evidence"
+                            >
+                                This finding did not exist
+                                in Version 1.
+                            </div>
+
+                        `
+                    }
+
+
+                </div>
+
+
+                <!-- ARROW -->
+
+                <div class="diff-arrow">
+
+                    →
+
+                </div>
+
+
+                <!-- VERSION 2 -->
+
+                <div class="diff-panel">
+
+
+                    <h4>
+                        Version 2
+                    </h4>
+
+
+                    ${
+                        v2
+
+                        ?
+
+                        `
+
+                            <div
+                                class="status"
+                            >
+                                ${escapeHtml(
+                                    v2.status
+                                )}
+                            </div>
+
+
+                            <div
+                                class="actual"
+                            >
+                                ${escapeHtml(
+                                    v2.actual ||
+                                    "No actual value"
+                                )}
+                            </div>
+
+
+                            <div
+                                class="evidence"
+                            >
+                                ${escapeHtml(
+                                    v2.evidence ||
+                                    "No evidence available."
+                                )}
+                            </div>
+
+                        `
+
+                        :
+
+                        `
+
+                            <div
+                                class="status"
+                            >
+                                FINDING REMOVED
+                            </div>
+
+
+                            <div
+                                class="evidence"
+                            >
+                                The finding no longer exists
+                                in Version 2.
+                            </div>
+
+                        `
+                    }
+
+
+                </div>
+
+
+            </div>
+
+
+            ${
+                v1 && v2
+
+                ?
+
+                `
+
+                    <div
+                        class="risk-reason"
+                    >
+
+                        <strong>
+                            Playbook comparison
+                        </strong>
+
+
+                        <br><br>
+
+
+                        Expected:
+
+                        ${escapeHtml(
+                            v1.expected ||
+                            v2.expected ||
+                            "Not specified"
+                        )}
+
+
+                        <br><br>
+
+
+                        ${
+                            impact ===
+                            "RISK REDUCED"
+
+                            ?
+
+                            `
+
+                                <span
+                                    style="
+                                        color:#26d98a;
+                                    "
+                                >
+
+                                    ✓ Version 2 reduced
+                                    the playbook risk.
+
+                                </span>
+
+                            `
+
+                            :
+
+                            impact ===
+                            "RISK INCREASED"
+
+                            ?
+
+                            `
+
+                                <span
+                                    style="
+                                        color:#ff5c70;
+                                    "
+                                >
+
+                                    ⚠ Version 2 increased
+                                    the playbook risk.
+
+                                </span>
+
+                            `
+
+                            :
+
+                            `
+
+                                <span>
+
+                                    No material risk-state
+                                    change detected.
+
+                                </span>
+
+                            `
+                        }
+
+
+                    </div>
+
+                `
+
+                :
+
+                ""
+
+            }
+
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   HTML ESCAPING
+   ========================================================= */
+
+function escapeHtml(value) {
+
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    return String(value)
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadComparison
+);
+
+
+</script>
+
+
+</body>
+
+</html>

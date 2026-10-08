@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ClauseGuard AI — Upload Contract</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+<aside class="sidebar">
+
+    <div class="brand">
+        <div class="brand-icon">C</div>
+
+        <div>
+            <h1>ClauseGuard</h1>
+            <span>Contract Intelligence</span>
+        </div>
+    </div>
+
+    <nav class="navigation">
+
+        <a
+            class="nav-item active"
+            href="upload.html"
+            style="text-decoration:none;"
+        >
+            <span>↑</span>
+            Upload Contract
+        </a>
+
+        <a
+            class="nav-item"
+            href="index.html"
+            style="text-decoration:none;"
+        >
+            <span>◈</span>
+            Dashboard
+        </a>
+
+        <button class="nav-item">
+            <span>⚠</span>
+            Risk Analysis
+        </button>
+
+        <button class="nav-item">
+            <span>✓</span>
+            Obligations
+        </button>
+
+        <button class="nav-item">
+            <span>⇄</span>
+            Version Comparison
+        </button>
+
+    </nav>
+
+    <div class="sidebar-bottom">
+
+        <div class="system-status">
+            <span class="status-dot"></span>
+
+            <div>
+                <strong>System Online</strong>
+                <small>Backend connected</small>
+            </div>
+        </div>
+
+        <div class="disclaimer">
+            Internal contract analysis only.
+            <br>
+            Not legal advice.
+        </div>
+
+    </div>
+
+</aside>
+
+
+<main class="main">
+
+    <header class="topbar">
+
+        <div>
+
+            <p class="eyebrow">
+                CONTRACT INTAKE
+            </p>
+
+            <h2>
+                Analyze a Contract
+            </h2>
+
+            <p class="subtitle">
+                Upload a contract and generate evidence-grounded
+                risk intelligence against the playbook.
+            </p>
+
+        </div>
+
+    </header>
+
+
+    <section class="card upload-card">
+
+        <div class="upload-header">
+
+            <div class="upload-icon">
+                ↑
+            </div>
+
+            <div>
+
+                <span class="card-label">
+                    DOCUMENT UPLOAD
+                </span>
+
+                <h3>
+                    Upload Contract
+                </h3>
+
+                <p>
+                    Supported formats: PDF and DOCX
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <form
+            id="uploadForm"
+            class="upload-form"
+        >
+
+            <label
+                for="contractName"
+                class="form-label"
+            >
+                Contract Name
+            </label>
+
+            <input
+                id="contractName"
+                name="contract_name"
+                type="text"
+                placeholder="e.g. Vendor Service Agreement"
+                required
+            >
+
+
+            <label
+                for="contractFile"
+                class="form-label"
+            >
+                Contract File
+            </label>
+
+            <label
+                for="contractFile"
+                class="file-drop"
+                id="fileDrop"
+            >
+
+                <div class="file-drop-icon">
+                    DOC
+                </div>
+
+                <strong>
+                    Choose contract file
+                </strong>
+
+                <span>
+                    PDF or DOCX
+                </span>
+
+                <small id="fileName">
+                    No file selected
+                </small>
+
+            </label>
+
+            <input
+                id="contractFile"
+                name="file"
+                type="file"
+                accept=".pdf,.docx"
+                hidden
+                required
+            >
+
+
+            <div
+                id="uploadStatus"
+                class="upload-status"
+            ></div>
+
+
+            <button
+                type="submit"
+                class="primary-button upload-button"
+                id="uploadButton"
+            >
+                Upload & Analyze →
+            </button>
+
+        </form>
+
+    </section>
+
+
+    <section class="upload-flow">
+
+        <div class="flow-step active">
+
+            <span>1</span>
+
+            <div>
+                <strong>
+                    Upload
+                </strong>
+
+                <small>
+                    Submit contract
+                </small>
+            </div>
+
+        </div>
+
+
+        <div class="flow-line"></div>
+
+
+        <div class="flow-step">
+
+            <span>2</span>
+
+            <div>
+                <strong>
+                    Extract
+                </strong>
+
+                <small>
+                    Identify clauses
+                </small>
+            </div>
+
+        </div>
+
+
+        <div class="flow-line"></div>
+
+
+        <div class="flow-step">
+
+            <span>3</span>
+
+            <div>
+                <strong>
+                    Analyze
+                </strong>
+
+                <small>
+                    Apply playbook
+                </small>
+            </div>
+
+        </div>
+
+
+        <div class="flow-line"></div>
+
+
+        <div class="flow-step">
+
+            <span>4</span>
+
+            <div>
+                <strong>
+                    Intelligence
+                </strong>
+
+                <small>
+                    View evidence & risks
+                </small>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section class="card demo-card">
+
+        <span class="card-label">
+            DEMO WORKFLOW
+        </span>
+
+        <h3>
+            From contract to explainable risk
+        </h3>
+
+        <div class="demo-points">
+
+            <div>
+                <span>01</span>
+                Exact clauses are extracted from the document.
+            </div>
+
+            <div>
+                <span>02</span>
+                Clauses are evaluated against the defined playbook.
+            </div>
+
+            <div>
+                <span>03</span>
+                Every risk is linked back to contract evidence.
+            </div>
+
+            <div>
+                <span>04</span>
+                Obligations and version-level risk changes are surfaced.
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <footer>
+
+        <span>
+            ClauseGuard AI
+        </span>
+
+        <span>
+            Evidence-grounded contract intelligence
+        </span>
+
+    </footer>
+
+</main>
+
+
+<script>
+
+const API_BASE =
+    "http://127.0.0.1:8000";
+
+
+const form =
+    document.getElementById("uploadForm");
+
+
+const fileInput =
+    document.getElementById("contractFile");
+
+
+const fileName =
+    document.getElementById("fileName");
+
+
+const uploadStatus =
+    document.getElementById("uploadStatus");
+
+
+const uploadButton =
+    document.getElementById("uploadButton");
+
+
+const fileDrop =
+    document.getElementById("fileDrop");
+
+
+/* =========================================================
+   FILE SELECTION
+========================================================= */
+
+fileInput.addEventListener(
+    "change",
+    () => {
+
+        if (!fileInput.files.length) {
+
+            fileName.textContent =
+                "No file selected";
+
+            return;
+        }
+
+        const file =
+            fileInput.files[0];
+
+        fileName.textContent =
+            `${file.name} • ${formatFileSize(file.size)}`;
+
+        fileDrop.classList.add(
+            "selected"
+        );
+    }
+);
+
+
+/* =========================================================
+   DRAG & DROP
+========================================================= */
+
+fileDrop.addEventListener(
+    "dragover",
+    event => {
+
+        event.preventDefault();
+
+        fileDrop.classList.add(
+            "dragging"
+        );
+    }
+);
+
+
+fileDrop.addEventListener(
+    "dragleave",
+    () => {
+
+        fileDrop.classList.remove(
+            "dragging"
+        );
+    }
+);
+
+
+fileDrop.addEventListener(
+    "drop",
+    event => {
+
+        event.preventDefault();
+
+        fileDrop.classList.remove(
+            "dragging"
+        );
+
+        if (
+            event.dataTransfer.files &&
+            event.dataTransfer.files.length
+        ) {
+
+            fileInput.files =
+                event.dataTransfer.files;
+
+            fileInput.dispatchEvent(
+                new Event("change")
+            );
+        }
+    }
+);
+
+
+/* =========================================================
+   UPLOAD
+========================================================= */
+
+form.addEventListener(
+    "submit",
+    async event => {
+
+        event.preventDefault();
+
+
+        const contractName =
+            document
+                .getElementById("contractName")
+                .value
+                .trim();
+
+
+        if (!contractName) {
+
+            showStatus(
+                "Please enter a contract name.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (!fileInput.files.length) {
+
+            showStatus(
+                "Please select a PDF or DOCX file.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const file =
+            fileInput.files[0];
+
+
+        const allowedTypes = [
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ];
+
+
+        const validExtension =
+            file.name
+                .toLowerCase()
+                .endsWith(".pdf") ||
+            file.name
+                .toLowerCase()
+                .endsWith(".docx");
+
+
+        if (!validExtension) {
+
+            showStatus(
+                "Only PDF and DOCX files are supported.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const formData =
+            new FormData();
+
+
+        /*
+         * The backend upload endpoint expects
+         * the contract file as multipart form data.
+         */
+
+        formData.append(
+            "file",
+            file
+        );
+
+
+        /*
+         * Contract name is included as form data.
+         * If the backend does not require it,
+         * the extra field is harmless.
+         */
+
+        formData.append(
+            "contract_name",
+            contractName
+        );
+
+
+        setUploading(true);
+
+
+        showStatus(
+            "Uploading contract...",
+            "loading"
+        );
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `${API_BASE}/contracts/upload`,
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    data.message ||
+                    "Contract upload failed."
+                );
+            }
+
+
+            /*
+             * Try to find the newly-created
+             * contract ID regardless of the
+             * exact response nesting.
+             */
+
+            const contractId =
+                findContractId(data);
+
+
+            if (!contractId) {
+
+                console.error(
+                    "Upload response:",
+                    data
+                );
+
+                throw new Error(
+                    "Contract uploaded, but the backend did not return a contract ID."
+                );
+            }
+
+
+            /*
+             * Save the ID so the dashboard
+             * can load this contract.
+             */
+
+            localStorage.setItem(
+                "activeContractId",
+                String(contractId)
+            );
+
+
+            showStatus(
+                "Contract uploaded successfully. Starting analysis...",
+                "success"
+            );
+
+
+            /*
+             * Analyze immediately.
+             */
+
+            const analyzeResponse =
+                await fetch(
+                    `${API_BASE}/contracts/${contractId}/analyze`,
+                    {
+                        method: "POST"
+                    }
+                );
+
+
+            const analyzeData =
+                await analyzeResponse.json();
+
+
+            if (!analyzeResponse.ok) {
+
+                throw new Error(
+                    analyzeData.detail ||
+                    analyzeData.message ||
+                    "Contract analysis failed."
+                );
+            }
+
+
+            showStatus(
+                "Analysis complete. Opening intelligence dashboard...",
+                "success"
+            );
+
+
+            setTimeout(
+                () => {
+
+                    window.location.href =
+                        "index.html";
+
+                },
+                700
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Upload error:",
+                error
+            );
+
+
+            showStatus(
+                error.message ||
+                "Something went wrong while uploading the contract.",
+                "error"
+            );
+
+
+            setUploading(false);
+        }
+    }
+);
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function findContractId(data) {
+
+    if (!data) {
+        return null;
+    }
+
+
+    if (
+        typeof data.id === "number" ||
+        typeof data.id === "string"
+    ) {
+        return data.id;
+    }
+
+
+    if (
+        data.contract &&
+        (
+            typeof data.contract.id === "number" ||
+            typeof data.contract.id === "string"
+        )
+    ) {
+        return data.contract.id;
+    }
+
+
+    if (
+        data.contract_id !== undefined &&
+        data.contract_id !== null
+    ) {
+        return data.contract_id;
+    }
+
+
+    if (
+        data.contract &&
+        data.contract.contract_id !== undefined
+    ) {
+        return data.contract.contract_id;
+    }
+
+
+    return null;
+}
+
+
+function showStatus(
+    message,
+    type
+) {
+
+    uploadStatus.textContent =
+        message;
+
+    uploadStatus.className =
+        `upload-status ${type}`;
+}
+
+
+function setUploading(
+    uploading
+) {
+
+    uploadButton.disabled =
+        uploading;
+
+    uploadButton.textContent =
+        uploading
+            ? "Processing..."
+            : "Upload & Analyze →";
+}
+
+
+function formatFileSize(
+    bytes
+) {
+
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+</script>
+
+</body>
+
+</html>

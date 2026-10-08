@@ -1,14 +1,17 @@
 import json
 from pathlib import Path
-from app.services.version_service import generate_contract_v2
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
-from app.services.diff_service import compare_clauses
+
 from app.database.connection import get_db
 from app.models import Contract, Clause, Finding, Obligation
+
 from app.services.document_service import extract_clauses
 from app.services.risk_service import analyze_clauses
 from app.services.obligation_service import extract_obligations
+from app.services.version_service import generate_contract_v2
+from app.services.diff_service import compare_clauses
 
 
 router = APIRouter(
@@ -45,7 +48,6 @@ async def upload_contract(
             detail="Only PDF and DOCX files are supported"
         )
 
-    # Save uploaded file
     file_path = UPLOAD_DIR / file.filename
 
     content = await file.read()
@@ -53,7 +55,6 @@ async def upload_contract(
     with open(file_path, "wb") as buffer:
         buffer.write(content)
 
-    # Create contract record
     contract = Contract(
         contract_name=Path(file.filename).stem,
         file_name=file.filename,
@@ -65,7 +66,6 @@ async def upload_contract(
     db.commit()
     db.refresh(contract)
 
-    # Extract clauses
     try:
         extracted_clauses = extract_clauses(
             str(file_path)
@@ -80,7 +80,6 @@ async def upload_contract(
             detail=f"Failed to extract contract clauses: {str(exc)}"
         )
 
-    # Store clauses
     saved_clauses = []
 
     for item in extracted_clauses:
@@ -134,7 +133,6 @@ def analyze_contract(
     db: Session = Depends(get_db)
 ):
 
-    # Find contract
     contract = (
         db.query(Contract)
         .filter(Contract.id == contract_id)
@@ -147,7 +145,6 @@ def analyze_contract(
             detail="Contract not found"
         )
 
-    # Find clauses
     clauses = (
         db.query(Clause)
         .filter(
@@ -162,7 +159,6 @@ def analyze_contract(
             detail="No clauses found for this contract"
         )
 
-    # Convert SQLAlchemy objects to dictionaries
     clause_data = [
         {
             "id": clause.id,
@@ -174,12 +170,10 @@ def analyze_contract(
         for clause in clauses
     ]
 
-    # Run risk analysis
     findings = analyze_clauses(
         clause_data
     )
 
-    # Remove previous findings
     db.query(Finding).filter(
         Finding.contract_id == contract_id
     ).delete(
@@ -188,7 +182,6 @@ def analyze_contract(
 
     saved_findings = []
 
-    # Save findings
     for item in findings:
 
         finding = Finding(
@@ -225,10 +218,6 @@ def analyze_contract(
         })
 
     db.commit()
-
-    # ========================================================
-    # SUMMARY
-    # ========================================================
 
     high_risk = sum(
         1
@@ -300,7 +289,6 @@ def analyze_obligations(
     db: Session = Depends(get_db)
 ):
 
-    # Find contract
     contract = (
         db.query(Contract)
         .filter(Contract.id == contract_id)
@@ -313,7 +301,6 @@ def analyze_obligations(
             detail="Contract not found"
         )
 
-    # Find clauses
     clauses = (
         db.query(Clause)
         .filter(
@@ -328,7 +315,6 @@ def analyze_obligations(
             detail="No clauses found for this contract"
         )
 
-    # Convert clauses to dictionaries
     clause_data = [
         {
             "id": clause.id,
@@ -340,12 +326,10 @@ def analyze_obligations(
         for clause in clauses
     ]
 
-    # Extract obligations
     obligations = extract_obligations(
         clause_data
     )
 
-    # Remove previous obligations
     db.query(Obligation).filter(
         Obligation.contract_id == contract_id
     ).delete(
@@ -354,7 +338,6 @@ def analyze_obligations(
 
     saved_obligations = []
 
-    # Save obligations
     for item in obligations:
 
         obligation = Obligation(
@@ -401,6 +384,8 @@ def analyze_obligations(
 
         "obligations": saved_obligations
     }
+
+
 # ============================================================
 # UNIFIED CONTRACT INTELLIGENCE
 # ============================================================
@@ -410,10 +395,6 @@ def get_contract_intelligence(
     contract_id: int,
     db: Session = Depends(get_db)
 ):
-
-    # --------------------------------------------------------
-    # Find contract
-    # --------------------------------------------------------
 
     contract = (
         db.query(Contract)
@@ -427,10 +408,6 @@ def get_contract_intelligence(
             detail="Contract not found"
         )
 
-    # --------------------------------------------------------
-    # Get clauses
-    # --------------------------------------------------------
-
     clauses = (
         db.query(Clause)
         .filter(
@@ -438,10 +415,6 @@ def get_contract_intelligence(
         )
         .all()
     )
-
-    # --------------------------------------------------------
-    # Get findings
-    # --------------------------------------------------------
 
     findings = (
         db.query(Finding)
@@ -451,10 +424,6 @@ def get_contract_intelligence(
         .all()
     )
 
-    # --------------------------------------------------------
-    # Get obligations
-    # --------------------------------------------------------
-
     obligations = (
         db.query(Obligation)
         .filter(
@@ -462,10 +431,6 @@ def get_contract_intelligence(
         )
         .all()
     )
-
-    # --------------------------------------------------------
-    # Prepare clauses
-    # --------------------------------------------------------
 
     clause_response = []
 
@@ -478,10 +443,6 @@ def get_contract_intelligence(
             "clause_text": clause.clause_text,
             "page_number": clause.page_number
         })
-
-    # --------------------------------------------------------
-    # Prepare findings
-    # --------------------------------------------------------
 
     finding_response = []
 
@@ -501,10 +462,6 @@ def get_contract_intelligence(
             "clause_id": finding.clause_id
         })
 
-    # --------------------------------------------------------
-    # Prepare obligations
-    # --------------------------------------------------------
-
     obligation_response = []
 
     for obligation in obligations:
@@ -518,10 +475,6 @@ def get_contract_intelligence(
             "trigger_condition": obligation.trigger_condition,
             "evidence": obligation.evidence
         })
-
-    # --------------------------------------------------------
-    # Summary
-    # --------------------------------------------------------
 
     high_risk = sum(
         1
@@ -559,10 +512,6 @@ def get_contract_intelligence(
         if finding.status == "AMBIGUOUS"
     )
 
-    # --------------------------------------------------------
-    # Final response
-    # --------------------------------------------------------
-
     return {
         "contract": {
             "id": contract.id,
@@ -576,10 +525,8 @@ def get_contract_intelligence(
             "clause_count": len(clauses),
             "finding_count": len(findings),
             "obligation_count": len(obligations),
-
             "high_risk": high_risk,
             "medium_risk": medium_risk,
-
             "standard": standard,
             "risky": risky,
             "missing": missing,
@@ -592,6 +539,295 @@ def get_contract_intelligence(
 
         "obligations": obligation_response
     }
+
+
+# ============================================================
+# CONTRACT RISK DASHBOARD
+# ============================================================
+
+@router.get("/{contract_id}/dashboard")
+def get_contract_dashboard(
+    contract_id: int,
+    db: Session = Depends(get_db)
+):
+
+    # --------------------------------------------------------
+    # Find contract
+    # --------------------------------------------------------
+
+    contract = (
+        db.query(Contract)
+        .filter(Contract.id == contract_id)
+        .first()
+    )
+
+    if not contract:
+        raise HTTPException(
+            status_code=404,
+            detail="Contract not found"
+        )
+
+    # --------------------------------------------------------
+    # Get findings
+    # --------------------------------------------------------
+
+    findings = (
+        db.query(Finding)
+        .filter(Finding.contract_id == contract_id)
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # Get obligations
+    # --------------------------------------------------------
+
+    obligations = (
+        db.query(Obligation)
+        .filter(Obligation.contract_id == contract_id)
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # Risk summary
+    # --------------------------------------------------------
+
+    high_risk = sum(
+        1
+        for finding in findings
+        if finding.severity == "HIGH"
+    )
+
+    medium_risk = sum(
+        1
+        for finding in findings
+        if finding.severity == "MEDIUM"
+    )
+
+    standard = sum(
+        1
+        for finding in findings
+        if finding.status == "STANDARD"
+    )
+
+    risky = sum(
+        1
+        for finding in findings
+        if finding.status == "RISKY"
+    )
+
+    ambiguous = sum(
+        1
+        for finding in findings
+        if finding.status == "AMBIGUOUS"
+    )
+
+    missing = sum(
+        1
+        for finding in findings
+        if finding.status == "MISSING"
+    )
+
+    # --------------------------------------------------------
+    # Risk ranking
+    # --------------------------------------------------------
+
+    severity_rank = {
+        "HIGH": 3,
+        "MEDIUM": 2,
+        "LOW": 1
+    }
+
+    status_rank = {
+        "RISKY": 3,
+        "AMBIGUOUS": 2,
+        "MISSING": 2,
+        "STANDARD": 1
+    }
+
+    def risk_score(finding):
+        return max(
+            severity_rank.get(finding.severity, 0),
+            status_rank.get(finding.status, 0)
+        )
+
+    sorted_findings = sorted(
+        findings,
+        key=risk_score,
+        reverse=True
+    )
+
+    # --------------------------------------------------------
+    # Top risks
+    # --------------------------------------------------------
+
+    top_risks = []
+
+    for finding in sorted_findings:
+
+        if finding.status not in [
+            "RISKY",
+            "AMBIGUOUS",
+            "MISSING"
+        ]:
+            continue
+
+        top_risks.append({
+            "finding_id": finding.id,
+            "rule_id": finding.rule_id,
+            "category": finding.category,
+            "status": finding.status,
+            "severity": finding.severity,
+            "actual": finding.actual,
+            "expected": finding.expected,
+            "evidence": finding.evidence,
+            "reason": finding.reason,
+            "recommended_action": finding.recommended_action,
+            "clause_id": finding.clause_id,
+            "trace_endpoint": (
+                f"/contracts/{contract_id}/"
+                f"findings/{finding.id}/trace"
+            )
+        })
+
+    # --------------------------------------------------------
+    # Missing clauses
+    # --------------------------------------------------------
+
+    missing_clauses = [
+        {
+            "finding_id": finding.id,
+            "rule_id": finding.rule_id,
+            "category": finding.category,
+            "severity": finding.severity,
+            "expected": finding.expected,
+            "recommended_action": finding.recommended_action
+        }
+        for finding in findings
+        if finding.status == "MISSING"
+    ]
+
+    # --------------------------------------------------------
+    # Ambiguous clauses
+    # --------------------------------------------------------
+
+    ambiguous_clauses = [
+        {
+            "finding_id": finding.id,
+            "rule_id": finding.rule_id,
+            "category": finding.category,
+            "severity": finding.severity,
+            "evidence": finding.evidence,
+            "actual": finding.actual,
+            "expected": finding.expected,
+            "reason": finding.reason,
+            "recommended_action": finding.recommended_action,
+            "clause_id": finding.clause_id
+        }
+        for finding in findings
+        if finding.status == "AMBIGUOUS"
+    ]
+
+    # --------------------------------------------------------
+    # Category distribution
+    # --------------------------------------------------------
+
+    category_distribution = {}
+
+    for finding in findings:
+
+        category = finding.category
+
+        if category not in category_distribution:
+            category_distribution[category] = {
+                "category": category,
+                "status": finding.status,
+                "severity": finding.severity,
+                "count": 0
+            }
+
+        category_distribution[category]["count"] += 1
+
+    # --------------------------------------------------------
+    # Obligations
+    # --------------------------------------------------------
+
+    obligation_response = [
+        {
+            "id": obligation.id,
+            "clause_id": obligation.clause_id,
+            "actor": obligation.actor,
+            "action": obligation.action,
+            "deadline": obligation.deadline,
+            "trigger_condition": obligation.trigger_condition,
+            "evidence": obligation.evidence
+        }
+        for obligation in obligations
+    ]
+
+    # --------------------------------------------------------
+    # Internal risk indicator
+    # --------------------------------------------------------
+
+    risk_points = (
+        (high_risk * 3)
+        + (medium_risk * 2)
+    )
+
+    if risk_points >= 6:
+        risk_level = "HIGH"
+    elif risk_points >= 3:
+        risk_level = "MEDIUM"
+    else:
+        risk_level = "LOW"
+
+    # --------------------------------------------------------
+    # Final dashboard response
+    # --------------------------------------------------------
+
+    return {
+        "message": "Contract dashboard generated successfully",
+
+        "contract": {
+            "id": contract.id,
+            "name": contract.contract_name,
+            "file_name": contract.file_name,
+            "file_type": contract.file_type,
+            "version": contract.version_number
+        },
+
+        "risk_summary": {
+            "total_findings": len(findings),
+            "high_risk": high_risk,
+            "medium_risk": medium_risk,
+            "risky": risky,
+            "standard": standard,
+            "ambiguous": ambiguous,
+            "missing": missing
+        },
+
+        "risk_indicator": {
+            "level": risk_level,
+            "points": risk_points,
+            "disclaimer": (
+                "Internal contract analysis indicator only; "
+                "not legal advice."
+            )
+        },
+
+        "top_risks": top_risks,
+
+        "missing_clauses": missing_clauses,
+
+        "ambiguous_clauses": ambiguous_clauses,
+
+        "category_distribution": list(
+            category_distribution.values()
+        ),
+
+        "obligations": obligation_response
+    }
+
+
 # ============================================================
 # GENERATE CONTRACT V2
 # ============================================================
@@ -601,10 +837,6 @@ def generate_v2(
     contract_id: int,
     db: Session = Depends(get_db)
 ):
-
-    # --------------------------------------------------------
-    # Find V1
-    # --------------------------------------------------------
 
     original_contract = (
         db.query(Contract)
@@ -620,19 +852,11 @@ def generate_v2(
             detail="Contract not found"
         )
 
-    # --------------------------------------------------------
-    # Prevent accidental V2 of V2
-    # --------------------------------------------------------
-
     if original_contract.version_number != 1:
         raise HTTPException(
             status_code=400,
             detail="V2 generation must start from a Version 1 contract"
         )
-
-    # --------------------------------------------------------
-    # Get V1 clauses
-    # --------------------------------------------------------
 
     clauses = (
         db.query(Clause)
@@ -649,10 +873,6 @@ def generate_v2(
             detail="No clauses found for this contract"
         )
 
-    # --------------------------------------------------------
-    # Generate revised clauses
-    # --------------------------------------------------------
-
     revised_clauses = generate_contract_v2(
         clauses
     )
@@ -662,10 +882,6 @@ def generate_v2(
         for clause in revised_clauses
         if clause["changed"]
     )
-
-    # --------------------------------------------------------
-    # Create V2 contract
-    # --------------------------------------------------------
 
     version_2 = Contract(
         contract_name=original_contract.contract_name,
@@ -680,10 +896,6 @@ def generate_v2(
     db.add(version_2)
     db.commit()
     db.refresh(version_2)
-
-    # --------------------------------------------------------
-    # Create V2 clauses
-    # --------------------------------------------------------
 
     saved_clauses = []
 
@@ -735,6 +947,8 @@ def generate_v2(
 
         "clauses": saved_clauses
     }
+
+
 # ============================================================
 # COMPARE CONTRACT V1 WITH V2
 # ============================================================
@@ -744,10 +958,6 @@ def compare_contract_v2(
     contract_id: int,
     db: Session = Depends(get_db)
 ):
-
-    # --------------------------------------------------------
-    # Find V1
-    # --------------------------------------------------------
 
     original_contract = (
         db.query(Contract)
@@ -762,10 +972,6 @@ def compare_contract_v2(
             status_code=404,
             detail="Original contract not found"
         )
-
-    # --------------------------------------------------------
-    # Find V2
-    # --------------------------------------------------------
 
     version_2 = (
         db.query(Contract)
@@ -782,10 +988,6 @@ def compare_contract_v2(
             status_code=404,
             detail="Version 2 not found. Generate V2 first."
         )
-
-    # --------------------------------------------------------
-    # Get clauses
-    # --------------------------------------------------------
 
     v1_clauses = (
         db.query(Clause)
@@ -805,18 +1007,10 @@ def compare_contract_v2(
         .all()
     )
 
-    # --------------------------------------------------------
-    # Compare
-    # --------------------------------------------------------
-
     changes = compare_clauses(
         v1_clauses,
         v2_clauses
     )
-
-    # --------------------------------------------------------
-    # Summary
-    # --------------------------------------------------------
 
     modified = sum(
         1
@@ -867,6 +1061,8 @@ def compare_contract_v2(
 
         "changes": changes
     }
+
+
 # ============================================================
 # EVIDENCE → PLAYBOOK TRACEABILITY
 # ============================================================
@@ -877,10 +1073,6 @@ def trace_finding(
     finding_id: int,
     db: Session = Depends(get_db)
 ):
-
-    # --------------------------------------------------------
-    # Find contract
-    # --------------------------------------------------------
 
     contract = (
         db.query(Contract)
@@ -893,10 +1085,6 @@ def trace_finding(
             status_code=404,
             detail="Contract not found"
         )
-
-    # --------------------------------------------------------
-    # Find finding
-    # --------------------------------------------------------
 
     finding = (
         db.query(Finding)
@@ -913,26 +1101,19 @@ def trace_finding(
             detail="Finding not found for this contract"
         )
 
-    # --------------------------------------------------------
-    # Find source clause
-    # --------------------------------------------------------
-
     clause = None
 
     if finding.clause_id:
         clause = (
             db.query(Clause)
-            .filter(Clause.id == finding.clause_id)
+            .filter(
+                Clause.id == finding.clause_id
+            )
             .first()
         )
 
-    # --------------------------------------------------------
-    # Load playbook rules
-    # --------------------------------------------------------
-
     rules_path = (
-        Path(__file__).resolve()
-        .parents[3]
+        Path(__file__).resolve().parents[3]
         / "playbook"
         / "rules.json"
     )
@@ -951,10 +1132,6 @@ def trace_finding(
             detail=f"Failed to load playbook rules: {str(exc)}"
         )
 
-    # --------------------------------------------------------
-    # Find matching rule
-    # --------------------------------------------------------
-
     rule = next(
         (
             item
@@ -969,10 +1146,6 @@ def trace_finding(
             status_code=404,
             detail=f"Playbook rule not found: {finding.rule_id}"
         )
-
-    # --------------------------------------------------------
-    # Return complete evidence chain
-    # --------------------------------------------------------
 
     return {
         "message": "Finding trace generated successfully",
@@ -993,19 +1166,30 @@ def trace_finding(
         },
 
         "contract_evidence": {
-            "clause_id": clause.id if clause else finding.clause_id,
+            "clause_id": (
+                clause.id
+                if clause
+                else finding.clause_id
+            ),
+
             "clause_number": (
                 clause.clause_number
-                if clause else None
+                if clause
+                else None
             ),
+
             "clause_title": (
                 clause.clause_title
-                if clause else None
+                if clause
+                else None
             ),
+
             "page_number": (
                 clause.page_number
-                if clause else None
+                if clause
+                else None
             ),
+
             "text": (
                 clause.clause_text
                 if clause
@@ -1041,10 +1225,6 @@ def compare_risk_versions(
     db: Session = Depends(get_db)
 ):
 
-    # --------------------------------------------------------
-    # Find V1
-    # --------------------------------------------------------
-
     v1 = (
         db.query(Contract)
         .filter(Contract.id == contract_id)
@@ -1056,10 +1236,6 @@ def compare_risk_versions(
             status_code=404,
             detail="Original contract not found"
         )
-
-    # --------------------------------------------------------
-    # Find V2
-    # --------------------------------------------------------
 
     v2 = (
         db.query(Contract)
@@ -1076,10 +1252,6 @@ def compare_risk_versions(
             status_code=404,
             detail="Version 2 not found. Generate V2 first."
         )
-
-    # --------------------------------------------------------
-    # Get findings
-    # --------------------------------------------------------
 
     v1_findings = (
         db.query(Finding)
@@ -1104,10 +1276,6 @@ def compare_risk_versions(
             status_code=400,
             detail="Version 2 has not been analyzed yet. Run /analyze for V2 first."
         )
-
-    # --------------------------------------------------------
-    # Create maps using playbook rule ID
-    # --------------------------------------------------------
 
     v1_map = {
         finding.rule_id: finding
@@ -1137,7 +1305,6 @@ def compare_risk_versions(
     }
 
     def risk_score(finding):
-        """Return a comparable 1-3 risk score for a finding."""
         return max(
             severity_rank.get(finding.severity, 0),
             status_rank.get(finding.status, 0)
@@ -1157,17 +1324,13 @@ def compare_risk_versions(
 
     risk_changes = []
 
-    # --------------------------------------------------------
-    # Compare every playbook rule
-    # --------------------------------------------------------
-
     for rule_id in all_rules:
 
         old = v1_map.get(rule_id)
         new = v2_map.get(rule_id)
 
-        # Rule exists in both versions
         if old and new:
+
             old_score = risk_score(old)
             new_score = risk_score(new)
 
@@ -1188,8 +1351,8 @@ def compare_risk_versions(
                 "risk_impact": impact
             })
 
-        # Rule existed in V1 but is absent in V2
         elif old and not new:
+
             old_score = risk_score(old)
 
             if old_score >= 2:
@@ -1207,8 +1370,8 @@ def compare_risk_versions(
                 "risk_impact": impact
             })
 
-        # Rule is newly present in V2
         elif new and not old:
+
             new_score = risk_score(new)
 
             if new_score >= 2:
@@ -1225,10 +1388,6 @@ def compare_risk_versions(
                 "v2_risk_score": new_score,
                 "risk_impact": impact
             })
-
-    # --------------------------------------------------------
-    # Aggregate risk changes
-    # --------------------------------------------------------
 
     risks_reduced = sum(
         1
@@ -1260,21 +1419,17 @@ def compare_risk_versions(
         if item["risk_impact"] == "NO CHANGE"
     )
 
-    # A regression means V2 introduced or increased a risk.
     risk_regression = (
-        risks_increased > 0 or
-        new_risks > 0
+        risks_increased > 0
+        or new_risks > 0
     )
 
     net_risk_improvement = (
-        risks_reduced + risks_resolved
+        risks_reduced
+        + risks_resolved
         - risks_increased
         - new_risks
     )
-
-    # --------------------------------------------------------
-    # Overall risk counts
-    # --------------------------------------------------------
 
     v1_high = sum(
         1
@@ -1344,6 +1499,7 @@ def compare_risk_versions(
                 "id": v1.id,
                 "version": v1.version_number
             },
+
             "v2": {
                 "id": v2.id,
                 "version": v2.version_number
