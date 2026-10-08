@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Environment variables
+.env
+.env.*
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Node
+node_modules/
+
+# Uploaded files
+uploads/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
