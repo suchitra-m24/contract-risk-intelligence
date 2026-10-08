@@ -9,6 +9,7 @@ from evidence_trace import (
     build_evidence_finding,
     build_evidence_report
 )
+from vector_store import VectorStore
 
 
 class ContractPipeline:
@@ -17,6 +18,8 @@ class ContractPipeline:
         print("Initializing Contract AI Pipeline...")
 
         self.matcher = SemanticMatcher()
+
+        self.vector_store = VectorStore()
 
         print("Pipeline initialized successfully.")
 
@@ -35,7 +38,9 @@ class ContractPipeline:
 
         elif path.suffix.lower() == ".docx":
 
-            paragraphs = extract_docx_paragraphs(str(path))
+            paragraphs = extract_docx_paragraphs(
+                str(path)
+            )
 
             # Normalize DOCX output so that the
             # clause segmenter can use the same format
@@ -63,7 +68,7 @@ class ContractPipeline:
         # STEP 1: EXTRACTION
         # ------------------------------------------------------
 
-        print("\n[1/5] Extracting contract...")
+        print("\n[1/6] Extracting contract...")
 
         pages = self.extract_contract(file_path)
 
@@ -75,7 +80,7 @@ class ContractPipeline:
         # STEP 2: CLAUSE SEGMENTATION
         # ------------------------------------------------------
 
-        print("\n[2/5] Segmenting clauses...")
+        print("\n[2/6] Segmenting clauses...")
 
         clauses = segment_contract_pages(pages)
 
@@ -84,10 +89,20 @@ class ContractPipeline:
         )
 
         # ------------------------------------------------------
-        # STEP 3: SEMANTIC MATCHING
+        # STEP 3: CHROMADB STORAGE
         # ------------------------------------------------------
 
-        print("\n[3/5] Matching clauses with playbook...")
+        print("\n[3/6] Storing clauses in ChromaDB...")
+
+        self.vector_store.add_clauses(
+            clauses
+        )
+
+        # ------------------------------------------------------
+        # STEP 4: SEMANTIC MATCHING
+        # ------------------------------------------------------
+
+        print("\n[4/6] Matching clauses with playbook...")
 
         findings = []
 
@@ -114,7 +129,7 @@ class ContractPipeline:
                 )
 
                 # ------------------------------------------------
-                # STEP 4: RISK ANALYSIS
+                # STEP 5: RISK ANALYSIS
                 # ------------------------------------------------
 
                 risk_result = analyze_clause(
@@ -123,7 +138,7 @@ class ContractPipeline:
                 )
 
                 # ------------------------------------------------
-                # STEP 5: EVIDENCE TRACE
+                # STEP 6: EVIDENCE TRACE
                 # ------------------------------------------------
 
                 finding = build_evidence_finding(
@@ -132,7 +147,9 @@ class ContractPipeline:
                     risk_result=risk_result
                 )
 
-                findings.append(finding)
+                findings.append(
+                    finding
+                )
 
         # ------------------------------------------------------
         # BUILD FINAL REPORT
@@ -142,8 +159,13 @@ class ContractPipeline:
             findings
         )
 
-        report["contract"] = str(file_path)
-        report["total_clauses"] = len(clauses)
+        report["contract"] = str(
+            file_path
+        )
+
+        report["total_clauses"] = len(
+            clauses
+        )
 
         return report
 
@@ -179,7 +201,9 @@ def print_report(report):
     ):
 
         print("\n" + "-" * 70)
-        print(f"FINDING {number}")
+        print(
+            f"FINDING {number}"
+        )
         print("-" * 70)
 
         print(
@@ -237,7 +261,9 @@ def print_report(report):
 
 if __name__ == "__main__":
 
-    contract_path = "contracts/test_contract.pdf"
+    contract_path = (
+        "contracts/test_contract.pdf"
+    )
 
     pipeline = ContractPipeline()
 
