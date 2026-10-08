@@ -10,6 +10,7 @@ from evidence_trace import (
     build_evidence_report
 )
 from vector_store import VectorStore
+from missing_clause_detector import detect_missing_clauses
 
 
 class ContractPipeline:
@@ -17,8 +18,10 @@ class ContractPipeline:
     def __init__(self):
         print("Initializing Contract AI Pipeline...")
 
+        # Semantic matching engine
         self.matcher = SemanticMatcher()
 
+        # ChromaDB vector store
         self.vector_store = VectorStore()
 
         print("Pipeline initialized successfully.")
@@ -64,9 +67,9 @@ class ContractPipeline:
         print("CONTRACT AI ANALYSIS PIPELINE")
         print("=" * 70)
 
-        # ------------------------------------------------------
+        # ======================================================
         # STEP 1: EXTRACTION
-        # ------------------------------------------------------
+        # ======================================================
 
         print("\n[1/6] Extracting contract...")
 
@@ -76,9 +79,9 @@ class ContractPipeline:
             f"Extracted {len(pages)} pages/paragraphs."
         )
 
-        # ------------------------------------------------------
+        # ======================================================
         # STEP 2: CLAUSE SEGMENTATION
-        # ------------------------------------------------------
+        # ======================================================
 
         print("\n[2/6] Segmenting clauses...")
 
@@ -88,21 +91,23 @@ class ContractPipeline:
             f"Detected {len(clauses)} clauses."
         )
 
-        # ------------------------------------------------------
+        # ======================================================
         # STEP 3: CHROMADB STORAGE
-        # ------------------------------------------------------
+        # ======================================================
 
         print("\n[3/6] Storing clauses in ChromaDB...")
 
         self.vector_store.add_clauses(
-            clauses
+    clauses
+)
+
+        # ======================================================
+        # STEP 4: SEMANTIC MATCHING + RISK ANALYSIS
+        # ======================================================
+
+        print(
+            "\n[4/6] Matching clauses with playbook..."
         )
-
-        # ------------------------------------------------------
-        # STEP 4: SEMANTIC MATCHING
-        # ------------------------------------------------------
-
-        print("\n[4/6] Matching clauses with playbook...")
 
         findings = []
 
@@ -128,18 +133,18 @@ class ContractPipeline:
                     f"-> {rule['rule_id']}"
                 )
 
-                # ------------------------------------------------
-                # STEP 5: RISK ANALYSIS
-                # ------------------------------------------------
+                # --------------------------------------------------
+                # RISK ANALYSIS
+                # --------------------------------------------------
 
                 risk_result = analyze_clause(
                     clause,
                     rule
                 )
 
-                # ------------------------------------------------
-                # STEP 6: EVIDENCE TRACE
-                # ------------------------------------------------
+                # --------------------------------------------------
+                # EVIDENCE TRACE
+                # --------------------------------------------------
 
                 finding = build_evidence_finding(
                     clause=clause,
@@ -151,9 +156,37 @@ class ContractPipeline:
                     finding
                 )
 
-        # ------------------------------------------------------
-        # BUILD FINAL REPORT
-        # ------------------------------------------------------
+        # ======================================================
+        # STEP 5: MISSING CLAUSE DETECTION
+        # ======================================================
+
+        print(
+            "\n[5/6] Detecting missing clauses..."
+        )
+
+        missing_clauses = detect_missing_clauses(
+            clauses
+        )
+
+        for missing in missing_clauses:
+
+            print(
+                f"  Missing -> {missing['rule_id']}"
+            )
+
+        # Add missing clauses to the same final
+        # evidence-grounded findings list.
+        findings.extend(
+            missing_clauses
+        )
+
+        # ======================================================
+        # STEP 6: BUILD FINAL REPORT
+        # ======================================================
+
+        print(
+            "\n[6/6] Building final report..."
+        )
 
         report = build_evidence_report(
             findings
@@ -191,7 +224,9 @@ def print_report(report):
 
     if not report["findings"]:
 
-        print("\nNo matched findings detected.")
+        print(
+            "\nNo matched or missing findings detected."
+        )
 
         return
 
@@ -201,9 +236,11 @@ def print_report(report):
     ):
 
         print("\n" + "-" * 70)
+
         print(
             f"FINDING {number}"
         )
+
         print("-" * 70)
 
         print(
